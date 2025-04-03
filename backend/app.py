@@ -166,11 +166,16 @@ def register():
         return jsonify({'error': '密码长度必须至少为6个字符'}), 400
     
     # 创建用户
-    success = db.create_user(username, password)
+    success, is_admin = db.create_user(username, password)
     if not success:
         return jsonify({'error': '用户名已存在'}), 409
     
-    return jsonify({'message': '注册成功', 'username': username})
+    return jsonify({
+        'message': '注册成功', 
+        'username': username,
+        'is_admin': is_admin,
+        'note': '您是第一个注册的用户，已被自动设置为管理员' if is_admin else ''
+    })
 
 @app.route('/api/auth/user', methods=['GET'])
 @token_required
@@ -240,7 +245,7 @@ def create_user(current_user):
         return jsonify({'error': '密码长度必须至少为6个字符'}), 400
     
     # 创建用户
-    success = db.create_user(username, password, is_admin)
+    success, _ = db.create_user(username, password, is_admin)
     if not success:
         return jsonify({'error': '用户名已存在'}), 409
     

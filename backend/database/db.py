@@ -149,6 +149,13 @@ class Database:
     def create_user(self, username, password, is_admin=False):
         """创建新用户"""
         try:
+            # 检查是否需要将此用户设置为管理员（如果是第一个注册的用户）
+            if not is_admin:
+                cursor = self.conn.execute("SELECT COUNT(*) FROM users")
+                if cursor.fetchone()[0] == 0:
+                    is_admin = True
+                    logger.info(f"第一个注册的用户 {username} 将被设置为管理员")
+            
             salt = secrets.token_hex(16)
             password_hash = self._hash_password(password, salt)
             
@@ -157,11 +164,11 @@ class Database:
                 (username, password_hash, salt, 1 if is_admin else 0)
             )
             self.conn.commit()
-            logger.info(f"创建用户成功: {username}")
-            return True
+            logger.info(f"创建用户成功: {username}, 管理员权限: {is_admin}")
+            return True, is_admin
         except sqlite3.IntegrityError:
             logger.warning(f"用户已存在: {username}")
-            return False
+            return False, False
     
     def update_user_password(self, user_id, new_password):
         """更新用户密码"""
