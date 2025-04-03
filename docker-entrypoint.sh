@@ -39,8 +39,8 @@ mkdir -p /tmp/nginx
 cat > /tmp/nginx/serve.json << EOF
 {
   "rewrites": [
-    { "source": "/api/**", "destination": "http://$HOST:$FLASK_PORT/api/:splat" },
-    { "source": "/ws", "destination": "ws://$HOST:$WS_PORT" }
+    { "source": "/api/(.*)", "destination": "http://localhost:$FLASK_PORT/api/\$1" },
+    { "source": "/ws", "destination": "ws://localhost:$WS_PORT" }
   ],
   "headers": [
     {
