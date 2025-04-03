@@ -18,7 +18,7 @@ services:
       - WS_PORT=8765
       - FRONTEND_PORT=3000
       - JWT_SECRET_KEY=huohuo_email_secret_key
-      - ALLOW_REGISTER=false
+      - ALLOW_REGISTER=true
       - API_URL=/api
       - WS_URL=/ws
     healthcheck:

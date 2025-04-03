@@ -132,32 +132,36 @@ WebSocketService.onMessage('warning', (message) => {
   })
 })
 
-// 根据认证状态决定是否初始化WebSocket连接
-if (store.getters['auth/isAuthenticated']) {
-  WebSocketService.connect()
-} else {
-  console.log('用户未登录，暂不连接WebSocket')
-}
-
-// 监听认证状态变化
-store.watch(
-  (state, getters) => getters['auth/isAuthenticated'], 
-  (newValue) => {
-    if (newValue) {
-      // 用户登录后，连接WebSocket
-      WebSocketService.connect()
-    } else {
-      // 用户登出后，断开WebSocket
-      WebSocketService.disconnect()
-    }
+// 挂载应用前获取系统配置
+store.dispatch('auth/getConfig').then(() => {
+  // 挂载应用
+  app.mount('#app')
+  
+  // 根据认证状态决定是否初始化WebSocket连接
+  if (store.getters['auth/isAuthenticated']) {
+    WebSocketService.connect()
+  } else {
+    console.log('用户未登录，暂不连接WebSocket')
   }
-)
+  
+  // 监听认证状态变化
+  store.watch(
+    (state, getters) => getters['auth/isAuthenticated'], 
+    (newValue) => {
+      if (newValue) {
+        // 用户登录后，连接WebSocket
+        WebSocketService.connect()
+      } else {
+        // 用户登出后，断开WebSocket
+        WebSocketService.disconnect()
+      }
+    }
+  )
+})
 
 app.use(createPinia())
 app.use(router)
 app.use(store)
 app.use(ElementPlus, {
   locale: zhCn,
-})
-
-app.mount('#app') 
+}) 

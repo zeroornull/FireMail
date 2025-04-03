@@ -34,7 +34,9 @@ CORS(app, supports_credentials=True)  # 允许跨域请求和凭据
 # JWT密钥
 JWT_SECRET = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
 # 是否允许注册新用户
-ALLOW_REGISTER = os.environ.get('ALLOW_REGISTER', 'false').lower() == 'true'
+ALLOW_REGISTER_VAL = os.environ.get('ALLOW_REGISTER', 'false')
+ALLOW_REGISTER = ALLOW_REGISTER_VAL.lower() in ('true', '1', 'yes', 'y')
+logger.info(f"注册功能状态: ALLOW_REGISTER={ALLOW_REGISTER} (来自环境变量值: '{ALLOW_REGISTER_VAL}')")
 
 # 初始化数据库
 db = Database()
@@ -298,6 +300,13 @@ def reset_user_password(current_user, user_id):
 def health_check():
     """健康检查接口"""
     return jsonify({'status': 'ok', 'message': '花火邮箱助手服务正在运行'})
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """获取系统配置信息"""
+    return jsonify({
+        'allow_register': ALLOW_REGISTER
+    })
 
 @app.route('/api/emails', methods=['GET'])
 @token_required

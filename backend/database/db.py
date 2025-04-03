@@ -76,11 +76,6 @@ class Database:
         )
         ''')
         
-        # 检查是否需要创建默认管理员用户
-        cursor = self.conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
-        if cursor.fetchone()[0] == 0:
-            self._create_default_admin()
-        
         # 检查emails表是否缺少user_id列，如果缺少则添加
         cursor = self.conn.execute("PRAGMA table_info(emails)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -91,24 +86,6 @@ class Database:
         
         self.conn.commit()
         logger.info("数据库表结构初始化完成")
-    
-    def _create_default_admin(self):
-        """创建默认管理员账号"""
-        admin_username = "admin"
-        admin_password = "admin123"
-        
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(admin_password, salt)
-        
-        try:
-            self.conn.execute(
-                "INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, 1)",
-                (admin_username, password_hash, salt)
-            )
-            self.conn.commit()
-            logger.info(f"创建默认管理员账号: {admin_username}")
-        except sqlite3.IntegrityError:
-            logger.warning(f"管理员账号 {admin_username} 已存在")
     
     def _hash_password(self, password, salt):
         """密码哈希"""

@@ -30,7 +30,10 @@ const state = {
   token: token || null,
   user: initialUser,
   loading: false,
-  error: null
+  error: null,
+  config: {
+    allowRegister: false
+  }
 }
 
 const mutations = {
@@ -53,6 +56,9 @@ const mutations = {
   },
   CLEAR_ERROR(state) {
     state.error = null
+  },
+  SET_CONFIG(state, config) {
+    state.config = config
   }
 }
 
@@ -218,6 +224,20 @@ const actions = {
   // 清除认证错误
   clearError({ commit }) {
     commit('CLEAR_ERROR')
+  },
+  
+  // 获取系统配置
+  async getConfig({ commit }) {
+    try {
+      const response = await api.getConfig()
+      commit('SET_CONFIG', { 
+        allowRegister: response.data.allow_register 
+      })
+      return response.data
+    } catch (error) {
+      console.error('获取系统配置失败:', error)
+      return { allow_register: false }
+    }
   }
 }
 
@@ -226,7 +246,8 @@ const getters = {
   currentUser: state => state.user,
   isAdmin: state => state.user?.isAdmin || false,
   authError: state => state.error,
-  authLoading: state => state.loading
+  authLoading: state => state.loading,
+  registrationEnabled: state => state.config.allowRegister
 }
 
 export default {

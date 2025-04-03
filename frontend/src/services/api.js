@@ -96,6 +96,11 @@ if (token) {
 
 // API方法
 export default {
+  // 系统配置
+  getConfig: () => {
+    return api.get('/config');
+  },
+  
   // 认证相关
   login: (username, password) => {
     return api.post('/auth/login', { username, password });
