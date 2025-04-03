@@ -33,6 +33,14 @@ CORS(app, supports_credentials=True)  # 允许跨域请求和凭据
 
 # JWT密钥
 JWT_SECRET = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
+
+# 打印所有环境变量，帮助调试
+print("\n========= 环境变量 =========")
+for key, value in os.environ.items():
+    if key in ['JWT_SECRET_KEY', 'ALLOW_REGISTER', 'HOST', 'FLASK_PORT', 'WS_PORT', 'API_URL', 'WS_URL']:
+        print(f"{key}: {value}")
+print("===========================\n")
+
 # 是否允许注册新用户
 ALLOW_REGISTER_VAL = os.environ.get('ALLOW_REGISTER', 'false')
 ALLOW_REGISTER = ALLOW_REGISTER_VAL.lower() in ('true', '1', 'yes', 'y')

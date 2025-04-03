@@ -4,15 +4,22 @@ import axios from 'axios';
 const getBaseUrl = () => {
   // 优先使用window.API_URL (通过env-config.js设置)
   if (window.API_URL) {
+    console.log('使用env-config中的API_URL:', window.API_URL);
+    // 如果API_URL不是以http开头，则添加当前域名
+    if (!window.API_URL.startsWith('http')) {
+      return window.location.origin + window.API_URL;
+    }
     return window.API_URL;
   }
   
   // 其次使用Vite环境变量
   if (import.meta.env.VITE_API_URL) {
+    console.log('使用Vite环境变量中的API_URL:', import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
   
   // 最后使用当前域名
+  console.log('使用默认API基础URL:', window.location.origin + '/api');
   return window.location.origin + '/api';
 };
 
