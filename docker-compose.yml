@@ -2,12 +2,13 @@ version: '3'
 
 services:
   huohuo-email-assistant:
-    build: .
+    image: luofengyuan/huohuo-email-assistant:latest
     container_name: huohuo-email-assistant
     restart: unless-stopped
     ports:
-      - "5000:5000"
-      - "8765:8765"
+      - "5000:5000"  # 后端API端口
+      - "8765:8765"  # WebSocket端口
+      - "3000:3000"  # 前端服务端口
     volumes:
       - ./backend/data:/app/backend/data
     environment:
@@ -15,6 +16,7 @@ services:
       - HOST=0.0.0.0
       - FLASK_PORT=5000
       - WS_PORT=8765
+      - FRONTEND_PORT=3000
       - JWT_SECRET_KEY=huohuo_email_secret_key
       - ALLOW_REGISTER=false
     healthcheck:

@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 WORKDIR /app/frontend
 RUN npm ci && \
     npm run build && \
+    npm install -g serve && \
     rm -rf node_modules
 
 # 回到主工作目录
@@ -44,7 +45,7 @@ ENV HOST=0.0.0.0 \
     ALLOW_REGISTER=false
 
 # 暴露端口
-EXPOSE 5000 8765
+EXPOSE 5000 8765 3000
 
 # 启动命令
 ENTRYPOINT ["/app/docker-entrypoint.sh"] 
