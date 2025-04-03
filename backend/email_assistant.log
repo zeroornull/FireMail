@@ -1,0 +1,392 @@
+2025-04-03 14:02:39,830 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:02:39,831 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:02:39,832 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:02:39,836 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:02:39,836 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:02:39,837 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:02:39,849 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:02:39,849 - huohuo-email-assistant - ERROR - WebSocket服务器异常: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8765): [winerror 10048] 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+2025-04-03 14:02:39,850 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:03:22,399 - database - INFO - 关闭数据库连接
+2025-04-03 14:03:22,399 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:03:28,478 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:03:28,479 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:03:28,480 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:03:28,484 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:03:28,484 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:03:28,485 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:03:28,494 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:03:28,495 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:03:28,496 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:03:29,069 - websockets.server - INFO - connection open
+2025-04-03 14:03:29,070 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:03:30,301 - websockets.server - INFO - connection open
+2025-04-03 14:03:30,301 - websocket_handler - INFO - New client connected. Total connections: 2
+2025-04-03 14:03:38,430 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:03:38,431 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:03:38,431 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:03:38,436 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:03:38,436 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:03:38,437 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:03:38,449 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:03:38,450 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:03:38,451 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:03:38,647 - websockets.server - INFO - connection open
+2025-04-03 14:03:38,647 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:03:38,648 - websocket_handler - INFO - Client connection closed
+2025-04-03 14:03:38,648 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:03:38,648 - websockets.server - INFO - connection closed
+2025-04-03 14:03:38,897 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:03:38] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:03:38,906 - websockets.server - INFO - connection open
+2025-04-03 14:03:38,906 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:03:44,595 - websockets.server - INFO - connection failed (400 Bad Request)
+2025-04-03 14:03:44,596 - websockets.server - INFO - connection closed
+2025-04-03 14:03:49,577 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:03:49,578 - websockets.server - INFO - connection closed
+2025-04-03 14:03:49,798 - websockets.server - INFO - connection open
+2025-04-03 14:03:49,798 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:04:11,524 - database - INFO - 尝试添加邮箱: lankapulline@outlook.com
+2025-04-03 14:04:11,532 - database - INFO - 邮箱添加成功: lankapulline@outlook.com
+2025-04-03 14:04:30,378 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:04:30,379 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:04:30,379 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:04:30,382 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:04:30,383 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:04:30,383 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:04:30,391 - huohuo-email-assistant - ERROR - WebSocket服务器异常: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8765): [winerror 10048] 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+2025-04-03 14:04:30,392 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:04:30,393 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:04:38,917 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:04:38,917 - websockets.server - INFO - connection closed
+2025-04-03 14:04:39,140 - websockets.server - INFO - connection open
+2025-04-03 14:04:39,141 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:05:43,283 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:05:43] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:05:43,290 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:05:43] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:09:07,362 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:09:07,362 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:09:07,363 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:09:07,367 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:09:07,367 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:09:07,368 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:09:07,378 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:09:07,379 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:09:07,380 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:10:17,763 - database - INFO - 关闭数据库连接
+2025-04-03 14:10:17,764 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:10:25,772 - database - INFO - 关闭数据库连接
+2025-04-03 14:10:25,773 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:10:27,144 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:10:27,145 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:10:27,145 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:10:27,152 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:10:27,152 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:10:27,153 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:10:27,164 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:10:27,166 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:10:27,167 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:12:09,306 - websockets.server - INFO - connection open
+2025-04-03 14:12:09,306 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:12:09,375 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:12:09] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:12:09,504 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:12:09] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:12:16,847 - email_utils - INFO - 开始处理 1 个邮箱
+2025-04-03 14:12:42,249 - email_utils - INFO - 开始处理邮箱 ID 1: lankapulline@outlook.com
+2025-04-03 14:12:42,249 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:12:42] "POST /api/emails/1/check HTTP/1.1" 200 -
+2025-04-03 14:12:42,250 - email_utils - INFO - 开始处理 1 个邮箱
+2025-04-03 14:12:42,250 - email_utils - WARNING - 邮箱 ID 1 正在被处理，跳过
+2025-04-03 14:12:43,326 - email_utils - INFO - Successfully obtained new access token
+2025-04-03 14:12:57,004 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:12:57] "[31m[1mPOST /api/emails/1/check HTTP/1.1[0m" 409 -
+2025-04-03 14:12:57,008 - email_utils - INFO - 开始处理 1 个邮箱
+2025-04-03 14:12:57,008 - email_utils - WARNING - 邮箱 ID 1 正在被处理，跳过
+2025-04-03 14:14:38,575 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:14:38,831 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:14:38] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:14:56,856 - websockets.server - INFO - connection closed
+2025-04-03 14:14:56,858 - websockets.server - INFO - connection open
+2025-04-03 14:14:56,858 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:14:56,865 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:14:56] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:15:00,393 - database - INFO - 关闭数据库连接
+2025-04-03 14:15:00,393 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:17:43,862 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:17:43,863 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:17:43,863 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:17:43,867 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:17:43,867 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:17:43,868 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:17:43,877 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:17:43,879 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:17:43,879 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:21:20,158 - websockets.server - INFO - connection open
+2025-04-03 14:21:20,158 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:21:20,179 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:20] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:21:20,237 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:20] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:21:22,452 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:21:22,452 - websockets.server - INFO - connection closed
+2025-04-03 14:21:22,743 - websockets.server - INFO - connection open
+2025-04-03 14:21:22,744 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:21:22,768 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:22] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:21:22,830 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:22] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:21:27,371 - database - INFO - 关闭数据库连接
+2025-04-03 14:21:27,372 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:21:28,670 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:21:28,671 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:21:28,672 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:21:28,675 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:21:28,675 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:21:28,676 - websocket_handler - INFO - Starting WebSocket server on 0.0.0.0:8765
+2025-04-03 14:21:28,685 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:21:28,688 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:21:28,689 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:21:30,416 - websockets.server - INFO - connection open
+2025-04-03 14:21:30,416 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:21:30,426 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:30] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:21:35,667 - huohuo-email-assistant - INFO - 开始检查邮箱 ID 1: lankapulline@outlook.com
+2025-04-03 14:21:35,668 - email_utils - INFO - 开始处理 1 个邮箱
+2025-04-03 14:21:35,669 - email_utils - INFO - 开始检查邮箱: ID=1, 邮箱=lankapulline@outlook.com
+2025-04-03 14:21:35,669 - email_utils - INFO - 开始处理邮箱 ID 1: lankapulline@outlook.com
+2025-04-03 14:21:35,669 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 0%, 消息: 正在获取访问令牌...
+2025-04-03 14:21:35,670 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:21:35] "POST /api/emails/1/check HTTP/1.1" 200 -
+2025-04-03 14:21:36,609 - email_utils - INFO - Successfully obtained new access token
+2025-04-03 14:21:36,611 - email_utils - INFO - 邮箱lankapulline@outlook.com(ID=1)成功获取访问令牌
+2025-04-03 14:21:36,623 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 10%, 消息: 开始检查邮箱文件夹...
+2025-04-03 14:21:36,624 - email_utils - INFO - 检查邮箱lankapulline@outlook.com(ID=1)的INBOX文件夹
+2025-04-03 14:21:44,751 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 30%, 消息: 检查INBOX文件夹: 50%
+2025-04-03 14:21:52,873 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 50%, 消息: 检查INBOX文件夹: 100%
+2025-04-03 14:21:53,512 - email_utils - INFO - 从邮箱lankapulline@outlook.com(ID=1)的INBOX文件夹收取了2封邮件
+2025-04-03 14:21:53,513 - email_utils - INFO - 检查邮箱lankapulline@outlook.com(ID=1)的Junk文件夹
+2025-04-03 14:21:57,670 - email_utils - INFO - 从邮箱lankapulline@outlook.com(ID=1)的Junk文件夹收取了0封邮件
+2025-04-03 14:21:57,671 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 90%, 消息: 正在保存2封邮件...
+2025-04-03 14:21:57,692 - email_utils - INFO - 邮箱lankapulline@outlook.com(ID=1)检查完成，成功保存2/2封邮件
+2025-04-03 14:21:57,692 - huohuo-email-assistant - INFO - 邮箱 ID 1 处理进度: 100%, 消息: 完成: 发现2封邮件，保存2封
+2025-04-03 14:22:08,335 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:22:08] "GET /api/emails/1/mail_records HTTP/1.1" 200 -
+2025-04-03 14:22:33,664 - websocket_handler - INFO - Client disconnected. Total connections: 0
+2025-04-03 14:22:33,664 - websockets.server - INFO - connection closed
+2025-04-03 14:22:33,891 - websockets.server - INFO - connection open
+2025-04-03 14:22:33,891 - websocket_handler - INFO - New client connected. Total connections: 1
+2025-04-03 14:22:33,941 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:22:33] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:22:49,621 - database - INFO - 关闭数据库连接
+2025-04-03 14:22:49,622 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:44:38,527 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:44:38,576 - database - INFO - 创建默认管理员账号: admin
+2025-04-03 14:44:38,576 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:44:38,578 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:44:38,583 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:44:38,584 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:44:38,597 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:44:38,598 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:44:38,600 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 14:44:38,601 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:48:46,284 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:48:46] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2025-04-03 14:49:04,010 - database - INFO - 关闭数据库连接
+2025-04-03 14:49:04,011 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:49:13,805 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:49:13,805 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:49:13,806 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:49:13,812 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:49:13,812 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:49:13,825 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 14:49:13,825 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:49:13,825 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:49:13,826 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:49:18,416 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:49:18] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2025-04-03 14:54:19,518 - database - INFO - 关闭数据库连接
+2025-04-03 14:54:19,518 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 14:54:34,194 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 14:54:34,195 - database - INFO - 数据库表结构初始化完成
+2025-04-03 14:54:34,196 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 14:54:34,201 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 14:54:34,201 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 14:54:34,212 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 14:54:34,214 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 14:54:34,215 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 14:54:34,215 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 14:54:43,342 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:54:43] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2025-04-03 14:54:43,382 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:54:43] "POST /api/auth/login HTTP/1.1" 200 -
+2025-04-03 14:54:43,389 - websockets.server - INFO - connection open
+2025-04-03 14:54:43,421 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:54:53,870 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:54:53] "OPTIONS /api/users HTTP/1.1" 200 -
+2025-04-03 14:54:53,874 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:54:53] "GET /api/users HTTP/1.1" 200 -
+2025-04-03 14:57:31,679 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:57:31,679 - websockets.server - INFO - connection closed
+2025-04-03 14:57:31,858 - websockets.server - INFO - connection open
+2025-04-03 14:57:31,902 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:31] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:57:31,908 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:57:31,909 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:31] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:57:44,902 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:57:44,902 - websockets.server - INFO - connection closed
+2025-04-03 14:57:45,048 - websockets.server - INFO - connection open
+2025-04-03 14:57:45,091 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:45] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:57:45,095 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:57:45,097 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:45] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:57:45,111 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:45] "OPTIONS /api/emails HTTP/1.1" 200 -
+2025-04-03 14:57:45,116 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:57:45] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:58:13,163 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:58:13,164 - websockets.server - INFO - connection closed
+2025-04-03 14:58:13,317 - websockets.server - INFO - connection open
+2025-04-03 14:58:13,355 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:13] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:58:13,360 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:13] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:58:27,685 - websocket - ERROR - WebSocket连接处理异常: received 1001 (going away); then sent 1001 (going away)
+2025-04-03 14:58:27,685 - websockets.server - INFO - connection closed
+2025-04-03 14:58:27,834 - websockets.server - INFO - connection open
+2025-04-03 14:58:27,874 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:27] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:58:27,878 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:27] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:58:27,880 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:58:27,888 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:27] "OPTIONS /api/emails HTTP/1.1" 200 -
+2025-04-03 14:58:27,890 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:27] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:58:45,140 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:58:45,141 - websockets.server - INFO - connection closed
+2025-04-03 14:58:45,286 - websockets.server - INFO - connection open
+2025-04-03 14:58:45,329 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:58:45,353 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:45] "OPTIONS /api/emails HTTP/1.1" 200 -
+2025-04-03 14:58:45,355 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:45] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:58:45,358 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:45] "GET /api/emails HTTP/1.1" 200 -
+2025-04-03 14:58:45,361 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:58:45] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:59:30,742 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:59:30,743 - websockets.server - INFO - connection closed
+2025-04-03 14:59:30,889 - websockets.server - INFO - connection open
+2025-04-03 14:59:30,926 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:59:30] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:59:30,931 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:59:30] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:59:30,932 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:59:30,937 - websocket - ERROR - 获取邮箱列表失败: 'sqlite3.Row' object has no attribute 'get'
+2025-04-03 14:59:43,126 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 14:59:43,127 - websockets.server - INFO - connection closed
+2025-04-03 14:59:43,277 - websockets.server - INFO - connection open
+2025-04-03 14:59:43,302 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:59:43] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:59:43,306 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 14:59:43] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 14:59:43,313 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 14:59:43,317 - websocket - ERROR - 获取邮箱列表失败: 'sqlite3.Row' object has no attribute 'get'
+2025-04-03 15:00:39,938 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 15:00:39,938 - websockets.server - INFO - connection closed
+2025-04-03 15:00:40,085 - websockets.server - INFO - connection open
+2025-04-03 15:00:40,123 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:00:40] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:00:40,127 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:00:40,129 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:00:40] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:00:40,132 - websocket - ERROR - 获取邮箱列表失败: 'sqlite3.Row' object has no attribute 'get'
+2025-04-03 15:11:03,589 - database - INFO - 关闭数据库连接
+2025-04-03 15:11:03,589 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 15:11:04,881 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 15:11:04,882 - database - INFO - 数据库表结构初始化完成
+2025-04-03 15:11:04,882 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 15:11:04,888 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 15:11:04,888 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 15:11:04,900 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 15:11:04,901 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 15:11:04,902 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 15:11:04,903 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 15:11:05,139 - websockets.server - INFO - connection open
+2025-04-03 15:11:05,143 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:11:05,146 - websocket - ERROR - 获取邮箱列表失败: 'sqlite3.Row' object has no attribute 'get'
+2025-04-03 15:11:11,194 - websockets.server - INFO - connection failed (400 Bad Request)
+2025-04-03 15:11:11,194 - websockets.server - INFO - connection closed
+2025-04-03 15:15:46,108 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 15:15:46,109 - websockets.server - INFO - connection closed
+2025-04-03 15:15:46,507 - websockets.server - INFO - connection open
+2025-04-03 15:15:46,551 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:15:46] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:15:46,552 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:15:46,563 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:15:46] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:15:46,574 - websocket - ERROR - 获取邮箱列表失败: 'sqlite3.Row' object has no attribute 'get'
+2025-04-03 15:15:49,100 - database - INFO - 关闭数据库连接
+2025-04-03 15:15:49,100 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 15:15:50,409 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 15:15:50,410 - database - INFO - 数据库表结构初始化完成
+2025-04-03 15:15:50,411 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 15:15:50,416 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 15:15:50,416 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 15:15:50,428 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 15:15:50,429 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 15:15:50,430 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 15:15:50,430 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 15:15:50,521 - websockets.server - INFO - connection open
+2025-04-03 15:15:50,524 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:15:50,525 - websocket - ERROR - 获取邮箱列表失败: no such column: user_id
+2025-04-03 15:16:03,409 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 15:16:03,409 - websockets.server - INFO - connection closed
+2025-04-03 15:16:03,602 - websockets.server - INFO - connection open
+2025-04-03 15:16:03,633 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:03] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:16:03,634 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:16:03,640 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:03] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:16:03,667 - websocket - ERROR - 获取邮箱列表失败: no such column: user_id
+2025-04-03 15:16:08,107 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:08] "OPTIONS /api/auth/logout HTTP/1.1" 200 -
+2025-04-03 15:16:08,112 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:08] "POST /api/auth/logout HTTP/1.1" 200 -
+2025-04-03 15:16:08,115 - websocket - INFO - WebSocket客户端已断开连接，用户ID: 1
+2025-04-03 15:16:08,116 - websockets.server - INFO - connection closed
+2025-04-03 15:16:21,232 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:21] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+2025-04-03 15:16:21,272 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:16:21] "POST /api/auth/login HTTP/1.1" 200 -
+2025-04-03 15:16:21,280 - websockets.server - INFO - connection open
+2025-04-03 15:16:21,301 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:16:21,303 - websocket - ERROR - 获取邮箱列表失败: no such column: user_id
+2025-04-03 15:16:29,070 - websocket - ERROR - 获取邮箱列表失败: no such column: user_id
+2025-04-03 15:16:50,717 - database - INFO - 尝试添加邮箱: YrZdaehYYR (用户ID: lankapulline@outlook.com)
+2025-04-03 15:16:50,717 - database - ERROR - 添加邮箱失败: YrZdaehYYR, 错误: table emails has no column named user_id
+2025-04-03 15:16:50,719 - websocket - INFO - 用户ID 1 完成邮箱批量导入，成功: 0，失败: 1
+2025-04-03 15:19:17,165 - database - INFO - 关闭数据库连接
+2025-04-03 15:19:17,166 - huohuo-email-assistant - INFO - 程序已关闭
+2025-04-03 15:22:34,377 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 15:22:34,378 - database - INFO - 数据库表结构初始化完成
+2025-04-03 15:22:34,378 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 15:22:34,384 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 15:22:34,384 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 15:22:34,396 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 15:22:34,397 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 15:22:34,399 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 15:22:34,400 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 15:22:46,724 - websockets.server - INFO - connection open
+2025-04-03 15:22:46,762 - websocket - INFO - WebSocket客户端已连接，用户ID: 1
+2025-04-03 15:22:46,766 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:22:46] "OPTIONS /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:22:46,773 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:22:46] "GET /api/auth/user HTTP/1.1" 200 -
+2025-04-03 15:22:46,774 - websocket - INFO - 发送邮箱列表给用户ID: 1
+2025-04-03 15:22:50,965 - websocket - INFO - 发送邮箱列表给用户ID: 1
+2025-04-03 15:22:53,601 - email_utils - INFO - 开始处理 1 个邮箱
+2025-04-03 15:22:53,603 - email_utils - INFO - 开始检查邮箱: ID=1, 邮箱=lankapulline@outlook.com
+2025-04-03 15:22:53,603 - email_utils - INFO - 开始处理邮箱 ID 1: lankapulline@outlook.com
+2025-04-03 15:22:53,604 - websocket - INFO - 开始检查邮箱: [1] (用户ID: 1)
+2025-04-03 15:22:54,585 - email_utils - INFO - Successfully obtained new access token
+2025-04-03 15:22:54,587 - email_utils - INFO - 邮箱lankapulline@outlook.com(ID=1)成功获取访问令牌
+2025-04-03 15:22:54,597 - email_utils - INFO - 检查邮箱lankapulline@outlook.com(ID=1)的INBOX文件夹
+2025-04-03 15:23:04,058 - email_utils - INFO - 从邮箱lankapulline@outlook.com(ID=1)的INBOX文件夹收取了2封邮件
+2025-04-03 15:23:04,059 - email_utils - INFO - 检查邮箱lankapulline@outlook.com(ID=1)的Junk文件夹
+2025-04-03 15:23:08,243 - email_utils - INFO - 从邮箱lankapulline@outlook.com(ID=1)的Junk文件夹收取了0封邮件
+2025-04-03 15:23:08,259 - email_utils - INFO - 邮箱lankapulline@outlook.com(ID=1)检查完成，成功保存2/2封邮件
+2025-04-03 15:23:11,892 - websocket - INFO - 发送邮件记录给用户ID: 1, 邮箱ID: 1
+2025-04-03 15:23:27,652 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:23:27] "OPTIONS /api/users HTTP/1.1" 200 -
+2025-04-03 15:23:27,656 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:23:27] "GET /api/users HTTP/1.1" 200 -

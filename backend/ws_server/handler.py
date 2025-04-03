@@ -1,0 +1,543 @@
+import os
+import json
+import asyncio
+import logging
+import websockets
+import jwt
+from concurrent.futures import ThreadPoolExecutor
+
+# 配置日志
+logger = logging.getLogger('websocket')
+
+class WebSocketHandler:
+    def __init__(self):
+        self.db = None
+        self.email_processor = None
+        self.port = 8765
+        self.clients = {}  # 连接的客户端 {websocket: user_id}
+        self.user_sockets = {}  # 用户的连接 {user_id: set(websockets)}
+        
+        # JWT密钥，与app.py保持一致
+        self.jwt_secret = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
+    
+    def set_dependencies(self, db, email_processor):
+        """设置依赖"""
+        self.db = db
+        self.email_processor = email_processor
+    
+    async def register_client(self, websocket, path):
+        """注册新客户端连接"""
+        try:
+            # 等待认证消息
+            auth_message = await websocket.recv()
+            auth_data = json.loads(auth_message)
+            
+            # 验证token
+            user_id = self.validate_token(auth_data.get('token'))
+            if not user_id:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '无效的认证令牌，请重新登录'
+                }))
+                return
+            
+            # 注册客户端
+            self.clients[websocket] = user_id
+            
+            # 注册用户的WebSocket连接
+            if user_id not in self.user_sockets:
+                self.user_sockets[user_id] = set()
+            self.user_sockets[user_id].add(websocket)
+            
+            logger.info(f"WebSocket客户端已连接，用户ID: {user_id}")
+            
+            # 发送连接成功消息
+            await websocket.send(json.dumps({
+                'type': 'connection_established',
+                'message': '连接已建立'
+            }))
+            
+            # 处理来自客户端的消息
+            await self.handle_messages(websocket, user_id)
+        except Exception as e:
+            logger.error(f"WebSocket连接处理异常: {str(e)}")
+        finally:
+            # 客户端断开连接
+            await self.unregister_client(websocket)
+    
+    async def unregister_client(self, websocket):
+        """注销客户端连接"""
+        if websocket in self.clients:
+            user_id = self.clients[websocket]
+            logger.info(f"WebSocket客户端已断开连接，用户ID: {user_id}")
+            
+            # 从用户的连接集合中移除
+            if user_id in self.user_sockets:
+                self.user_sockets[user_id].discard(websocket)
+                if not self.user_sockets[user_id]:
+                    del self.user_sockets[user_id]
+            
+            # 从客户端字典中移除
+            del self.clients[websocket]
+    
+    def validate_token(self, token):
+        """验证JWT令牌并提取用户ID"""
+        if not token:
+            return None
+        
+        try:
+            # 解码JWT令牌
+            data = jwt.decode(token, self.jwt_secret, algorithms=["HS256"])
+            
+            # 检查用户是否存在
+            user = self.db.get_user_by_id(data['user_id'])
+            if not user:
+                return None
+            
+            return user['id']
+        except jwt.ExpiredSignatureError:
+            logger.warning("令牌已过期")
+            return None
+        except Exception as e:
+            logger.error(f"令牌验证失败: {str(e)}")
+            return None
+    
+    async def handle_messages(self, websocket, user_id):
+        """处理从客户端接收的消息"""
+        async for message in websocket:
+            try:
+                data = json.loads(message)
+                message_type = data.get('type')
+                
+                # 根据消息类型处理
+                if message_type == 'get_all_emails':
+                    await self.handle_get_all_emails(websocket, user_id)
+                elif message_type == 'check_emails':
+                    await self.handle_check_emails(websocket, user_id, data)
+                elif message_type == 'get_mail_records':
+                    await self.handle_get_mail_records(websocket, user_id, data)
+                elif message_type == 'add_email':
+                    await self.handle_add_email(websocket, user_id, data)
+                elif message_type == 'delete_emails':
+                    await self.handle_delete_emails(websocket, user_id, data)
+                elif message_type == 'import_emails':
+                    await self.handle_import_emails(websocket, user_id, data)
+                else:
+                    await websocket.send(json.dumps({
+                        'type': 'error',
+                        'message': f'未知消息类型: {message_type}'
+                    }))
+            except json.JSONDecodeError:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '无效的JSON消息'
+                }))
+            except Exception as e:
+                logger.error(f"处理消息时出错: {str(e)}")
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': f'处理消息时出错: {str(e)}'
+                }))
+    
+    async def handle_get_all_emails(self, websocket, user_id):
+        """处理获取所有邮箱的请求"""
+        try:
+            # 获取用户信息
+            user = self.db.get_user_by_id(user_id)
+            if not user:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '用户不存在'
+                }))
+                return
+            
+            # 管理员可以获取所有邮箱，普通用户只能获取自己的邮箱
+            is_admin = user['is_admin'] if 'is_admin' in user else False
+            if is_admin:
+                emails = self.db.get_all_emails()
+            else:
+                emails = self.db.get_all_emails(user_id)
+            
+            # 将邮箱记录转换为字典列表
+            emails_list = [dict(email) for email in emails]
+            
+            # 发送响应
+            await websocket.send(json.dumps({
+                'type': 'emails_list',
+                'data': emails_list
+            }))
+            
+            logger.info(f"发送邮箱列表给用户ID: {user_id}")
+        except Exception as e:
+            logger.error(f"获取邮箱列表失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'获取邮箱列表失败: {str(e)}'
+            }))
+    
+    async def handle_check_emails(self, websocket, user_id, data):
+        """处理检查邮箱邮件的请求"""
+        try:
+            # 获取请求数据
+            email_ids = data.get('email_ids', [])
+            if not email_ids:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '未提供邮箱ID'
+                }))
+                return
+            
+            # 获取用户信息
+            user = self.db.get_user_by_id(user_id)
+            if not user:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '用户不存在'
+                }))
+                return
+            
+            # 验证邮箱所有权
+            is_admin = user['is_admin'] if 'is_admin' in user else False
+            if not is_admin:
+                # 获取用户拥有的邮箱
+                owned_emails = self.db.get_all_emails(user_id)
+                owned_ids = [email['id'] for email in owned_emails]
+                
+                # 过滤出用户有权限的邮箱ID
+                valid_ids = [id for id in email_ids if id in owned_ids]
+                
+                if not valid_ids:
+                    await websocket.send(json.dumps({
+                        'type': 'error',
+                        'message': '您没有权限检查任何指定的邮箱'
+                    }))
+                    return
+                
+                email_ids = valid_ids
+            
+            # 过滤已经在处理的邮箱
+            processing_ids = []
+            valid_ids = []
+            
+            for email_id in email_ids:
+                if self.email_processor.is_email_being_processed(email_id):
+                    processing_ids.append(email_id)
+                else:
+                    valid_ids.append(email_id)
+            
+            if processing_ids:
+                await websocket.send(json.dumps({
+                    'type': 'info',
+                    'message': f'跳过已经在处理中的 {len(processing_ids)} 个邮箱'
+                }))
+            
+            if not valid_ids:
+                await websocket.send(json.dumps({
+                    'type': 'warning',
+                    'message': '所有邮箱都在处理中，请稍后再试'
+                }))
+                return
+            
+            # 定义进度回调函数
+            def progress_callback(email_id, progress, message):
+                asyncio.run(self.send_progress_update(user_id, email_id, progress, message))
+            
+            # 启动检查邮箱任务
+            with ThreadPoolExecutor() as executor:
+                executor.submit(self.email_processor.check_emails, valid_ids, progress_callback)
+            
+            # 发送开始检查的消息
+            await websocket.send(json.dumps({
+                'type': 'success',
+                'message': f'开始检查 {len(valid_ids)} 个邮箱'
+            }))
+            
+            logger.info(f"开始检查邮箱: {valid_ids} (用户ID: {user_id})")
+        except Exception as e:
+            logger.error(f"检查邮箱失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'检查邮箱失败: {str(e)}'
+            }))
+    
+    async def handle_get_mail_records(self, websocket, user_id, data):
+        """处理获取邮件记录的请求"""
+        try:
+            # 获取请求数据
+            email_id = data.get('email_id')
+            if not email_id:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '未提供邮箱ID'
+                }))
+                return
+            
+            # 获取用户信息
+            user = self.db.get_user_by_id(user_id)
+            if not user:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '用户不存在'
+                }))
+                return
+            
+            # 验证邮箱所有权
+            is_admin = user['is_admin'] if 'is_admin' in user else False
+            email_info = self.db.get_email_by_id(email_id, None if is_admin else user_id)
+            if not email_info:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': f'邮箱ID {email_id} 不存在或您没有权限'
+                }))
+                return
+            
+            # 获取邮件记录
+            mail_records = self.db.get_mail_records(email_id)
+            
+            # 发送响应
+            await websocket.send(json.dumps({
+                'type': 'mail_records',
+                'email_id': email_id,
+                'data': [dict(record) for record in mail_records]
+            }))
+            
+            logger.info(f"发送邮件记录给用户ID: {user_id}, 邮箱ID: {email_id}")
+        except Exception as e:
+            logger.error(f"获取邮件记录失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'获取邮件记录失败: {str(e)}'
+            }))
+    
+    async def handle_add_email(self, websocket, user_id, data):
+        """处理添加邮箱的请求"""
+        try:
+            # 获取请求数据
+            email = data.get('email')
+            password = data.get('password')
+            client_id = data.get('client_id')
+            refresh_token = data.get('refresh_token')
+            
+            if not email or not password:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '邮箱地址和密码不能为空'
+                }))
+                return
+            
+            # 添加邮箱 - 确保参数顺序正确：user_id, email, password, client_id, refresh_token
+            email_id = self.db.add_email(user_id, email, password, client_id, refresh_token)
+            
+            if email_id:
+                # 发送成功消息
+                await websocket.send(json.dumps({
+                    'type': 'email_added',
+                    'message': f'邮箱 {email} 添加成功'
+                }))
+                
+                logger.info(f"用户ID {user_id} 添加了邮箱: {email}")
+            else:
+                # 发送错误消息
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': f'邮箱 {email} 添加失败，可能已存在'
+                }))
+        except Exception as e:
+            logger.error(f"添加邮箱失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'添加邮箱失败: {str(e)}'
+            }))
+    
+    async def handle_delete_emails(self, websocket, user_id, data):
+        """处理删除邮箱的请求"""
+        try:
+            # 获取请求数据
+            email_ids = data.get('email_ids', [])
+            if not email_ids:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '未提供邮箱ID'
+                }))
+                return
+            
+            # 获取用户信息
+            user = self.db.get_user_by_id(user_id)
+            if not user:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '用户不存在'
+                }))
+                return
+            
+            # 验证邮箱所有权并删除
+            is_admin = user['is_admin'] if 'is_admin' in user else False
+            if is_admin:
+                # 管理员可以删除任何邮箱
+                self.db.delete_emails(email_ids)
+            else:
+                # 普通用户只能删除自己的邮箱
+                self.db.delete_emails(email_ids, user_id)
+            
+            # 发送成功消息
+            await websocket.send(json.dumps({
+                'type': 'emails_deleted',
+                'email_ids': email_ids,
+                'message': f'已删除 {len(email_ids)} 个邮箱'
+            }))
+            
+            # 向所有客户端广播邮箱已删除的消息
+            await self.broadcast_emails_deleted(email_ids)
+            
+            logger.info(f"用户ID {user_id} 删除了邮箱: {email_ids}")
+        except Exception as e:
+            logger.error(f"删除邮箱失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'删除邮箱失败: {str(e)}'
+            }))
+    
+    async def send_progress_update(self, user_id, email_id, progress, message):
+        """发送进度更新给用户"""
+        if user_id not in self.user_sockets:
+            return
+        
+        progress_message = json.dumps({
+            'type': 'check_progress',
+            'email_id': email_id,
+            'progress': progress,
+            'message': message
+        })
+        
+        # 发送给该用户的所有WebSocket连接
+        websockets_copy = self.user_sockets[user_id].copy()
+        for websocket in websockets_copy:
+            try:
+                await websocket.send(progress_message)
+            except Exception as e:
+                logger.error(f"发送进度更新失败: {str(e)}")
+                # 这里不需要删除连接，因为错误会导致连接关闭，unregister_client会处理
+    
+    async def broadcast_emails_deleted(self, email_ids):
+        """向所有连接的客户端广播邮箱已删除的消息"""
+        message = json.dumps({
+            'type': 'emails_deleted',
+            'email_ids': email_ids
+        })
+        
+        # 复制客户端字典，避免在迭代过程中修改
+        clients_copy = list(self.clients.keys())
+        for websocket in clients_copy:
+            try:
+                await websocket.send(message)
+            except Exception as e:
+                logger.error(f"广播邮箱删除消息失败: {str(e)}")
+                # 这里不需要删除连接，因为错误会导致连接关闭，unregister_client会处理
+    
+    async def handle_import_emails(self, websocket, user_id, data):
+        """处理导入邮箱的请求"""
+        try:
+            # 获取请求数据
+            import_data = data.get('data', '')
+            if not import_data:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '未提供要导入的邮箱数据'
+                }))
+                return
+            
+            # 获取用户信息
+            user = self.db.get_user_by_id(user_id)
+            if not user:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': '用户不存在'
+                }))
+                return
+            
+            # 处理导入邮箱的逻辑
+            # 解析导入数据，预期格式: 一行一条，每条格式为 email----password----client_id----refresh_token
+            lines = import_data.strip().split('\n')
+            imported_count = 0
+            errors = []
+            
+            for line in lines:
+                try:
+                    parts = line.strip().split('----')
+                    
+                    if len(parts) < 2:
+                        errors.append(f"格式错误: {line}")
+                        continue
+                    
+                    email = parts[0]
+                    password = parts[1]
+                    client_id = parts[2] if len(parts) > 2 else None
+                    refresh_token = parts[3] if len(parts) > 3 else None
+                    
+                    # 添加邮箱到数据库 - 确保参数顺序正确：user_id, email, password, client_id, refresh_token
+                    email_id = self.db.add_email(user_id, email, password, client_id, refresh_token)
+                    if email_id:
+                        imported_count += 1
+                    else:
+                        errors.append(f"添加失败: {email}")
+                except Exception as e:
+                    errors.append(f"处理失败: {line} ({str(e)})")
+            
+            # 发送导入结果消息
+            if imported_count > 0:
+                await websocket.send(json.dumps({
+                    'type': 'success',
+                    'message': f'成功导入 {imported_count} 个邮箱'
+                }))
+                
+                # 广播邮箱列表更新
+                await websocket.send(json.dumps({
+                    'type': 'emails_imported'
+                }))
+            else:
+                await websocket.send(json.dumps({
+                    'type': 'warning',
+                    'message': '没有成功导入任何邮箱'
+                }))
+            
+            # 如果有错误，也发送错误详情
+            if errors:
+                error_message = '\n'.join(errors[:10])
+                if len(errors) > 10:
+                    error_message += f"\n...以及其他 {len(errors) - 10} 个错误"
+                
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': f'导入过程中出现以下错误:\n{error_message}'
+                }))
+            
+            logger.info(f"用户ID {user_id} 完成邮箱批量导入，成功: {imported_count}，失败: {len(errors)}")
+        except Exception as e:
+            logger.error(f"导入邮箱失败: {str(e)}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'导入邮箱失败: {str(e)}'
+            }))
+    
+    async def websocket_server(self, websocket, path):
+        """WebSocket服务器入口点"""
+        await self.register_client(websocket, path)
+    
+    def run(self):
+        """启动WebSocket服务器"""
+        # 创建事件循环
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # 启动WebSocket服务器
+        start_server = websockets.serve(
+            self.websocket_server,
+            "0.0.0.0",
+            self.port
+        )
+        
+        logger.info(f"WebSocket服务器启动于端口 {self.port}")
+        
+        # 运行事件循环
+        loop.run_until_complete(start_server)
+        loop.run_forever() 

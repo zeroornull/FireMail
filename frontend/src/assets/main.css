@@ -1,0 +1,66 @@
+@import './base.css';
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  font-weight: normal;
+}
+
+.card {
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background-color: white;
+}
+
+.page-container {
+  padding: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.app-title {
+  color: #409eff;
+  font-weight: bold;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.text-danger {
+  color: #f56c6c;
+}
+
+.text-success {
+  color: #67c23a;
+}
+
+.text-warning {
+  color: #e6a23c;
+}
+
+.text-info {
+  color: #909399;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+} 
