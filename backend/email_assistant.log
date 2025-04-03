@@ -390,3 +390,18 @@
 2025-04-03 15:23:11,892 - websocket - INFO - 发送邮件记录给用户ID: 1, 邮箱ID: 1
 2025-04-03 15:23:27,652 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:23:27] "OPTIONS /api/users HTTP/1.1" 200 -
 2025-04-03 15:23:27,656 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 15:23:27] "GET /api/users HTTP/1.1" 200 -
+2025-04-03 20:38:28,715 - huohuo-email-assistant - INFO - 注册功能状态: ALLOW_REGISTER=True (来自环境变量值: 'true')
+2025-04-03 20:38:28,716 - database - INFO - 初始化数据库: C:\Users\Administrator\Downloads\项目\3\huohuo-email-assistant\backend\data\huohuo_email.db
+2025-04-03 20:38:28,724 - database - INFO - 数据库表结构初始化完成
+2025-04-03 20:38:28,724 - email_utils - INFO - 邮件批量处理器初始化，最大线程数：5
+2025-04-03 20:38:28,730 - huohuo-email-assistant - INFO - 启动WebSocket服务器
+2025-04-03 20:38:28,730 - huohuo-email-assistant - INFO - 花火邮箱助手启动于 http://0.0.0.0:5000
+2025-04-03 20:38:28,746 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.65.104:5000
+2025-04-03 20:38:28,747 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 20:38:28,755 - websocket - INFO - WebSocket服务器启动于端口 8765
+2025-04-03 20:38:28,756 - websockets.server - INFO - server listening on 0.0.0.0:8765
+2025-04-03 20:39:20,971 - database - INFO - 关闭数据库连接
+2025-04-03 20:39:20,971 - huohuo-email-assistant - INFO - 程序已关闭
