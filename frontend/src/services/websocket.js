@@ -42,20 +42,32 @@ class WebSocketService {
     this.connectHandlers = [];
     this.disconnectHandlers = [];
     
-    // WebSocket的URL，默认使用相同主机名
+    this.url = this.getWebSocketUrl();
+    console.log(`WebSocket服务URL: ${this.url}`);
+  }
+
+  getWebSocketUrl() {
+    // 优先使用window.WS_URL (通过env-config.js设置)
+    if (window.WS_URL) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      // 如果WS_URL是相对路径，则添加主机名
+      if (window.WS_URL.startsWith('/')) {
+        return `${protocol}//${window.location.host}${window.WS_URL}`;
+      }
+      return window.WS_URL;
+    }
+    
+    // 使用Vite环境变量或动态计算
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
     const port = import.meta.env.VITE_WS_PORT || (window.location.port ? '' : '8765');
     
     // 如果在生产环境中且没有明确指定端口，则使用与当前页面相同的端口
-    // 这适用于Docker部署时的反向代理情况
     if (port === '') {
-      this.url = `${protocol}://${host}/ws`;
+      return `${protocol}://${host}/ws`;
     } else {
-      this.url = `${protocol}://${host}:${port}`;
+      return `${protocol}://${host}:${port}`;
     }
-    
-    console.log(`WebSocket服务URL: ${this.url}`);
   }
 
   connect() {

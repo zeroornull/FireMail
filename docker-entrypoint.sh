@@ -21,6 +21,13 @@ echo "后端API地址: http://$HOST:$FLASK_PORT"
 echo "WebSocket服务地址: ws://$HOST:$WS_PORT"
 echo "前端服务地址: http://$HOST:$FRONTEND_PORT"
 
+# 创建前端环境变量文件
+mkdir -p /app/frontend/dist
+cat > /app/frontend/dist/env-config.js << EOF
+window.API_URL = '${API_URL:-/api}';
+window.WS_URL = '${WS_URL:-/ws}';
+EOF
+
 # 启动前端静态文件服务器
 cd /app/frontend
 echo "启动前端服务..."

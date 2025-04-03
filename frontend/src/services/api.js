@@ -1,13 +1,32 @@
 import axios from 'axios';
 
+// 获取API基础URL
+const getBaseUrl = () => {
+  // 优先使用window.API_URL (通过env-config.js设置)
+  if (window.API_URL) {
+    return window.API_URL;
+  }
+  
+  // 其次使用Vite环境变量
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 最后使用当前域名
+  return window.location.origin + '/api';
+};
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: getBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// 输出API基础URL
+console.log('API基础URL:', api.defaults.baseURL);
 
 // 请求拦截器
 api.interceptors.request.use(

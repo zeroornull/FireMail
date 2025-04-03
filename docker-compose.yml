@@ -19,6 +19,8 @@ services:
       - FRONTEND_PORT=3000
       - JWT_SECRET_KEY=huohuo_email_secret_key
       - ALLOW_REGISTER=false
+      - API_URL=/api
+      - WS_URL=/ws
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
