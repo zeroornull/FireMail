@@ -2,25 +2,15 @@ import axios from 'axios';
 
 // 获取API基础URL
 const getBaseUrl = () => {
-  // 优先使用window.API_URL (通过env-config.js设置)
-  if (window.API_URL) {
-    console.log('使用env-config中的API_URL:', window.API_URL);
-    // 如果API_URL不是以http开头，则添加当前域名
-    if (!window.API_URL.startsWith('http')) {
-      return window.location.origin + window.API_URL;
-    }
-    return window.API_URL;
-  }
-  
-  // 其次使用Vite环境变量
-  if (import.meta.env.VITE_API_URL) {
-    console.log('使用Vite环境变量中的API_URL:', import.meta.env.VITE_API_URL);
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // 最后使用当前域名
-  console.log('使用默认API基础URL:', window.location.origin + '/api');
-  return window.location.origin + '/api';
+  console.group('API基础URL检测');
+
+  // 使用固定端口构建API URL
+  const hostname = window.location.hostname;
+  const apiPort = 5000;  // 固定使用5000端口
+  const url = `http://${hostname}:${apiPort}/api`;
+  console.log('使用固定端口API基础URL:', url);
+  console.groupEnd();
+  return url;
 };
 
 // 创建axios实例
@@ -76,9 +66,17 @@ api.interceptors.response.use(
       console.error('API请求未收到响应:', error.request);
       // 服务器未响应的处理
       const errorMessage = '无法连接到服务器，请检查后端服务是否启动';
-      error.response = { data: { message: errorMessage } };
+      error.response = { data: { message: errorMessage, error: 'Failed to fetch' } };
+      
+      // 创建自定义错误
+      const fetchError = new Error(errorMessage);
+      fetchError.name = 'fetchError';
+      fetchError.isConnectionError = true;
+      error.fetchError = fetchError;
     } else {
       console.error('API请求错误:', error.message);
+      // 其他错误处理
+      error.response = { data: { message: error.message || '请求出错' } };
     }
     return Promise.reject(error);
   }
@@ -104,13 +102,80 @@ if (token) {
 // API方法
 export default {
   // 系统配置
-  getConfig: () => {
-    return api.get('/config');
+  getConfig: (retryCount = 0, maxRetries = 3) => {
+    console.log(`尝试获取系统配置 (尝试 ${retryCount + 1}/${maxRetries + 1})`);
+    return api.get('/config')
+      .catch(error => {
+        console.error('获取系统配置失败:', error);
+        
+        // 如果是网络错误且未超过最大重试次数，则进行重试
+        if (error.request && retryCount < maxRetries) {
+          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // 指数延迟，最大5秒
+          console.log(`将在 ${retryDelay}ms 后重试获取系统配置`);
+          
+          return new Promise(resolve => {
+            setTimeout(() => {
+              resolve(exports.default.getConfig(retryCount + 1, maxRetries));
+            }, retryDelay);
+          });
+        }
+        
+        // 超过重试次数或其他错误，返回默认配置
+        console.warn('无法获取系统配置，使用默认值（允许注册）');
+        return Promise.resolve({
+          data: {
+            allow_register: true
+          }
+        });
+      });
+  },
+  
+  toggleRegistration: (allow) => {
+    return api.post('/admin/config/registration', { allow });
   },
   
   // 认证相关
   login: (username, password) => {
-    return api.post('/auth/login', { username, password });
+    console.log('调用登录API...', username);
+    
+    // 增加对API_URL的检查
+    console.log('当前API基础URL:', api.defaults.baseURL);
+    
+    return api.post('/auth/login', { username, password })
+      .then(response => {
+        // 检查响应数据格式，防止HTML响应导致错误
+        if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+          console.error('接收到HTML响应而非预期的JSON数据，这可能意味着API请求被路由到了前端应用');
+          // 重新构建错误对象
+          const error = new Error('登录失败：收到HTML响应，请检查后端服务配置');
+          error.htmlResponse = true;
+          error.responseData = response.data;
+          return Promise.reject(error);
+        }
+        
+        // 验证响应中包含预期的token和用户数据
+        if (!response.data.token) {
+          console.error('登录响应缺少token:', response.data);
+          return Promise.reject(new Error('登录失败：响应缺少token'));
+        }
+        
+        if (!response.data.user) {
+          console.error('登录响应缺少user对象:', response.data);
+          return Promise.reject(new Error('登录失败：响应缺少用户信息'));
+        }
+        
+        return response;
+      })
+      .catch(error => {
+        // 添加对特定错误的额外处理
+        if (error.htmlResponse) {
+          console.error('请求收到HTML而非JSON，尝试使用备用URL重试');
+          // 这里可以尝试备用方式或显示更有用的错误信息
+        }
+        
+        // 重新抛出错误供上层处理
+        throw error;
+      });
   },
   
   logout: () => {
@@ -118,6 +183,7 @@ export default {
   },
   
   register: (username, password) => {
+    console.log('发送注册请求:', { username, password });
     return api.post('/auth/register', { username, password });
   },
   

@@ -59,11 +59,18 @@ export const useEmailsStore = {
           WebSocketService.getEmails();
         } else {
           // 如果WebSocket未连接，则使用API
-          const response = await api.get('/emails');
-          commit('SET_EMAILS', response.data);
+          const response = await api.getAllEmails();
+          if (response && response.data) {
+            commit('SET_EMAILS', response.data);
+          } else {
+            console.warn('API未返回有效的邮箱数据');
+            commit('SET_EMAILS', []);
+          }
         }
       } catch (error) {
         console.error('获取邮箱列表失败:', error);
+        // 设置空数组防止进一步错误
+        commit('SET_EMAILS', []);
         throw error;
       } finally {
         commit('SET_LOADING', false);

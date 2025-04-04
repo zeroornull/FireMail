@@ -5,6 +5,7 @@ import logging
 import websockets
 import jwt
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 # 配置日志
 logger = logging.getLogger('websocket')
@@ -16,6 +17,10 @@ class WebSocketHandler:
         self.port = 8765
         self.clients = {}  # 连接的客户端 {websocket: user_id}
         self.user_sockets = {}  # 用户的连接 {user_id: set(websockets)}
+        self.client_tokens = {}  # 存储客户端的认证信息
+        self.client_handlers = {}  # 存储每个客户端的处理函数
+        self.active_users = {}  # 用户ID -> websocket连接
+        self.user_counters = {}  # 用户ID -> 连接数
         
         # JWT密钥，与app.py保持一致
         self.jwt_secret = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
@@ -24,6 +29,16 @@ class WebSocketHandler:
         """设置依赖"""
         self.db = db
         self.email_processor = email_processor
+        
+        # 注册消息处理函数
+        self.client_handlers = {
+            'get_all_emails': self.handle_get_all_emails_message,
+            'check_emails': self.handle_check_emails_message,
+            'get_mail_records': self.handle_get_mail_records_message,
+            'add_email': self.handle_add_email_message,
+            'delete_emails': self.handle_delete_emails_message,
+            'import_emails': self.handle_import_emails_message,
+        }
     
     async def register_client(self, websocket, path):
         """注册新客户端连接"""
@@ -43,6 +58,9 @@ class WebSocketHandler:
             
             # 注册客户端
             self.clients[websocket] = user_id
+            
+            # 注册认证状态
+            self.client_tokens[websocket] = auth_data.get('token')
             
             # 注册用户的WebSocket连接
             if user_id not in self.user_sockets:
@@ -79,6 +97,10 @@ class WebSocketHandler:
             
             # 从客户端字典中移除
             del self.clients[websocket]
+            
+            # 从认证令牌字典中移除
+            if websocket in self.client_tokens:
+                del self.client_tokens[websocket]
     
     def validate_token(self, token):
         """验证JWT令牌并提取用户ID"""
@@ -519,9 +541,152 @@ class WebSocketHandler:
                 'message': f'导入邮箱失败: {str(e)}'
             }))
     
+    async def handle_message(self, websocket, message_text):
+        """处理WebSocket消息"""
+        try:
+            message = json.loads(message_text)
+            message_type = message.get('type')
+            
+            # 处理重复认证消息
+            if message_type == 'authenticate':
+                # 如果已经认证过，直接返回认证成功
+                if websocket in self.client_tokens:
+                    await self.send_message(websocket, {
+                        'type': 'auth_result',
+                        'success': True,
+                        'message': '认证成功'
+                    })
+                    return
+                else:
+                    # 处理新认证请求
+                    token = message.get('token')
+                    if not token:
+                        await self.send_error(websocket, "无效的认证消息")
+                        return
+                    
+                    user_id = self.validate_token(token)
+                    if not user_id:
+                        await self.send_error(websocket, "无效的认证令牌，请重新登录")
+                        return
+                    
+                    # 注册认证状态
+                    self.client_tokens[websocket] = token
+                    
+                    # 发送认证成功消息
+                    await self.send_message(websocket, {
+                        'type': 'auth_result',
+                        'success': True,
+                        'message': '认证成功'
+                    })
+                    return
+            
+            # 未认证的客户端只能发送认证消息
+            if websocket not in self.client_tokens and message_type != 'authenticate':
+                await self.send_error(websocket, "请先进行认证")
+                return
+            
+            # 心跳消息处理
+            if message_type == 'heartbeat':
+                await self.handle_heartbeat(websocket)
+                return
+            
+            # 调用对应类型的处理函数
+            handler = self.client_handlers.get(message_type)
+            if handler:
+                await handler(websocket, message)
+            else:
+                logger.warning(f"未知的消息类型: {message_type}")
+                await self.send_error(websocket, f"未知的消息类型: {message_type}")
+        except json.JSONDecodeError:
+            logger.error("无效的JSON消息")
+            await self.send_error(websocket, "无效的消息格式")
+        except Exception as e:
+            logger.error(f"处理消息时出错: {str(e)}")
+            await self.send_error(websocket, f"处理消息失败: {str(e)}")
+    
+    async def handle_heartbeat(self, websocket):
+        """处理心跳消息"""
+        logger.debug("收到心跳消息，发送响应")
+        await self.send_message(websocket, {
+            'type': 'heartbeat_response',
+            'timestamp': datetime.now().isoformat()
+        })
+    
     async def websocket_server(self, websocket, path):
         """WebSocket服务器入口点"""
-        await self.register_client(websocket, path)
+        logger.info(f"新的WebSocket连接: {websocket.remote_address}")
+        try:
+            # 等待认证消息
+            auth_message = await websocket.recv()
+            auth_data = json.loads(auth_message)
+            
+            if auth_data.get('type') == 'heartbeat':
+                # 处理心跳消息
+                await self.handle_heartbeat(websocket)
+                return
+            
+            # 验证token
+            token = auth_data.get('token')
+            if not token or auth_data.get('type') != 'authenticate':
+                await self.send_error(websocket, "请发送有效的认证消息")
+                return
+            
+            user_id = self.validate_token(token)
+            if not user_id:
+                await self.send_error(websocket, "无效的认证令牌，请重新登录")
+                return
+            
+            # 注册客户端
+            self.clients[websocket] = user_id
+            
+            # 注册认证状态
+            self.client_tokens[websocket] = token
+            
+            # 注册用户的WebSocket连接
+            if user_id not in self.user_sockets:
+                self.user_sockets[user_id] = set()
+            self.user_sockets[user_id].add(websocket)
+            
+            logger.info(f"WebSocket客户端已认证，用户ID: {user_id}")
+            
+            # 发送认证成功消息
+            await self.send_message(websocket, {
+                'type': 'auth_result',
+                'success': True,
+                'message': '认证成功'
+            })
+            
+            # 处理来自客户端的消息
+            try:
+                async for message in websocket:
+                    await self.handle_message(websocket, message)
+            except websockets.exceptions.ConnectionClosed:
+                logger.info(f"WebSocket连接已关闭: {websocket.remote_address}")
+            
+        except json.JSONDecodeError:
+            await self.send_error(websocket, "无效的JSON消息")
+        except Exception as e:
+            logger.error(f"WebSocket处理异常: {str(e)}")
+        finally:
+            # 客户端断开连接
+            await self.unregister_client(websocket)
+    
+    async def send_error(self, websocket, message):
+        """发送错误消息"""
+        try:
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': message
+            }))
+        except:
+            pass
+    
+    async def send_message(self, websocket, message):
+        """发送消息"""
+        try:
+            await websocket.send(json.dumps(message))
+        except Exception as e:
+            logger.error(f"发送消息失败: {str(e)}")
     
     def run(self):
         """启动WebSocket服务器"""
@@ -540,4 +705,52 @@ class WebSocketHandler:
         
         # 运行事件循环
         loop.run_until_complete(start_server)
-        loop.run_forever() 
+        loop.run_forever()
+
+    async def handle_get_all_emails_message(self, websocket, message):
+        """处理获取所有邮箱的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_get_all_emails(websocket, user_id)
+    
+    async def handle_check_emails_message(self, websocket, message):
+        """处理检查邮箱的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_check_emails(websocket, user_id, message)
+    
+    async def handle_get_mail_records_message(self, websocket, message):
+        """处理获取邮件记录的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_get_mail_records(websocket, user_id, message)
+    
+    async def handle_add_email_message(self, websocket, message):
+        """处理添加邮箱的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_add_email(websocket, user_id, message)
+    
+    async def handle_delete_emails_message(self, websocket, message):
+        """处理删除邮箱的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_delete_emails(websocket, user_id, message)
+    
+    async def handle_import_emails_message(self, websocket, message):
+        """处理导入邮箱的WebSocket消息"""
+        user_id = self.clients.get(websocket)
+        if not user_id:
+            await self.send_error(websocket, "未找到用户信息")
+            return
+        await self.handle_import_emails(websocket, user_id, message) 

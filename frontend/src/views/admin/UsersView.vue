@@ -2,7 +2,18 @@
   <div class="users-container">
     <div class="users-header">
       <h1>用户管理</h1>
-      <button class="btn btn-primary" @click="showAddUserModal = true">添加用户</button>
+      <div class="header-actions">
+        <div class="registration-toggle">
+          <span>注册功能：</span>
+          <el-switch
+            v-model="registrationEnabled"
+            active-text="开启"
+            inactive-text="关闭"
+            @change="toggleRegistration"
+          />
+        </div>
+        <button class="btn btn-primary" @click="showAddUserModal = true">添加用户</button>
+      </div>
     </div>
     
     <div class="alert-container">
@@ -201,6 +212,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import api from '@/services/api';
 
 export default {
   name: 'UsersView',
@@ -210,6 +222,7 @@ export default {
       loading: false,
       message: null,
       messageTimeout: null,
+      registrationEnabled: false,
       
       // 添加用户
       showAddUserModal: false,
@@ -280,12 +293,31 @@ export default {
       this.loading = true;
       
       try {
-        const users = await this.getAllUsers();
-        this.users = users;
+        const response = await api.getAllUsers();
+        this.users = response.data;
       } catch (error) {
         this.showMessage('error', '获取用户列表失败: ' + (error.message || '未知错误'));
       } finally {
         this.loading = false;
+      }
+    },
+    
+    async fetchSystemConfig() {
+      try {
+        const response = await api.getConfig();
+        this.registrationEnabled = response.data.allow_register;
+      } catch (error) {
+        console.error('获取系统配置失败', error);
+      }
+    },
+    
+    async toggleRegistration(value) {
+      try {
+        await api.toggleRegistration(value);
+        this.showMessage(`已${value ? '开启' : '关闭'}注册功能`, 'success');
+      } catch (error) {
+        this.registrationEnabled = !value; // 恢复原状态
+        this.showMessage(`${value ? '开启' : '关闭'}注册功能失败`, 'error');
       }
     },
     
@@ -400,8 +432,9 @@ export default {
       }
     }
   },
-  created() {
+  mounted() {
     this.fetchUsers();
+    this.fetchSystemConfig();
   },
   beforeUnmount() {
     // 清除消息定时器
@@ -431,6 +464,18 @@ export default {
   font-weight: 600;
   color: #333;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.registration-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .alert-container {

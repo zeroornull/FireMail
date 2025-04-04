@@ -24,13 +24,14 @@ app.config.globalProperties.$webSocket = WebSocketService
 // 设置WebSocket连接状态和消息处理
 WebSocketService.onConnect(() => {
   // 通知状态变更
-  store.commit('SET_WEBSOCKET_CONNECTED', true)
-  // 连接成功后获取所有邮箱
-  if (store.getters['auth/isAuthenticated']) {
-    store.dispatch('emails/fetchAllEmails')
-    console.log('WebSocket连接成功，已请求更新邮箱列表')
-  }
-})
+  store.commit('SET_WEBSOCKET_CONNECTED', true);
+  
+  // 注意：此时只是连接成功，但可能尚未完成认证
+  console.log('WebSocket连接成功，等待认证...');
+  
+  // 不要立即获取数据，而是在认证成功后再获取
+  // 认证成功的逻辑应该在WebSocketService内部处理
+});
 
 WebSocketService.onDisconnect(() => {
   // 通知状态变更
@@ -131,6 +132,16 @@ WebSocketService.onMessage('warning', (message) => {
     message: message.message
   })
 })
+
+// 添加WebSocket认证成功处理器
+WebSocketService.onAuthSuccess(() => {
+  console.log('WebSocket认证成功，正在请求更新邮箱列表...');
+  
+  // 只有在用户已登录的情况下才获取邮箱列表
+  if (store.getters['auth/isAuthenticated']) {
+    store.dispatch('emails/fetchAllEmails');
+  }
+});
 
 // 挂载应用前获取系统配置
 store.dispatch('auth/getConfig').then(() => {

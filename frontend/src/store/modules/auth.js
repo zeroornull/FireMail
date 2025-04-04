@@ -62,13 +62,61 @@ const mutations = {
   }
 }
 
+// 异常处理方法，提供统一错误处理
+const handleApiError = (commit, error) => {
+  console.error('API错误:', error)
+  
+  // 检查是否为连接错误
+  if (error.fetchError && error.fetchError.isConnectionError) {
+    console.error('连接错误:', error.fetchError.message)
+    commit('AUTH_ERROR', '无法连接到服务器，请检查网络或服务器状态')
+  } else if (error.response) {
+    commit('AUTH_ERROR', error.response.data.error || '操作失败')
+  } else {
+    commit('AUTH_ERROR', error.message || '未知错误')
+  }
+  
+  throw error
+}
+
 const actions = {
   // 用户登录
   async login({ commit }, { username, password }) {
     commit('AUTH_REQUEST')
     try {
+      console.log('登录请求开始，用户名:', username);
       const response = await api.login(username, password)
+      
+      // 额外检查：处理HTML响应
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+        console.error('登录API返回了HTML而不是JSON，可能是后端服务未正确配置');
+        throw new Error('登录失败：后端服务返回了HTML而不是JSON');
+      }
+      
+      // 验证响应数据格式
+      if (!response.data) {
+        throw new Error('服务器响应数据格式错误')
+      }
+      
       const token = response.data.token
+      if (!token) {
+        throw new Error('登录失败：缺少令牌')
+      }
+      
+      // 检查user对象是否存在
+      if (!response.data.user) {
+        console.error('登录响应中缺少user对象:', response.data)
+        throw new Error('登录失败：服务器返回数据不完整')
+      }
+      
+      // 检查user对象是否包含所需属性
+      if (response.data.user.id === undefined || 
+          response.data.user.username === undefined || 
+          response.data.user.is_admin === undefined) {
+        console.error('登录响应中user对象缺少必要属性:', response.data.user)
+        throw new Error('登录失败：用户数据不完整')
+      }
+      
       const user = {
         id: response.data.user.id,
         username: response.data.user.username,
@@ -82,25 +130,67 @@ const actions = {
       api.setAuthHeader(token)
       
       commit('AUTH_SUCCESS', { token, user })
+      console.log('登录成功:', user.username);
       
       return user
     } catch (error) {
+      console.error('登录失败:', error);
       localStorage.removeItem('token')
-      commit('AUTH_ERROR', error.response?.data?.error || '登录失败')
-      throw error
+      
+      // 特殊处理HTML响应错误
+      if (error.htmlResponse || (error.message && error.message.includes('HTML'))) {
+        commit('AUTH_ERROR', '后端服务连接错误，请确保服务已启动');
+        throw new Error('登录失败：后端服务连接错误');
+      }
+      
+      handleApiError(commit, error)
     }
   },
   
   // 用户注册
   async register({ commit }, { username, password }) {
-    commit('AUTH_REQUEST')
+    commit('AUTH_REQUEST');
     try {
-      const response = await api.register(username, password)
-      commit('CLEAR_ERROR')
-      return response.data
+      console.log('发送注册请求:', username);
+      const response = await api.register(username, password);
+      commit('CLEAR_ERROR');
+      
+      console.log('注册成功，返回数据:', response.data);
+      return response.data;
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '注册失败')
-      throw error
+      console.error('注册失败:', error);
+      commit('AUTH_ERROR', error.response?.data?.error || '注册失败');
+      throw error;
+    }
+  },
+  
+  // 注册后自动登录
+  async registerAndLogin({ dispatch, commit }, { username, password }) {
+    try {
+      // 先进行注册
+      await dispatch('register', { username, password });
+      
+      // 注册成功后等待一秒再尝试登录，给后端处理时间
+      console.log('注册成功，准备自动登录...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 尝试登录
+      try {
+        const user = await dispatch('login', { username, password });
+        console.log('自动登录成功:', user.username);
+        return { success: true, user };
+      } catch (loginError) {
+        console.error('自动登录失败:', loginError);
+        // 自动登录失败，但注册成功了
+        return { 
+          success: false, 
+          error: loginError,
+          message: '注册成功，但自动登录失败，请手动登录'
+        };
+      }
+    } catch (error) {
+      console.error('注册过程失败:', error);
+      throw error; // 注册失败，向上传递错误
     }
   },
   
@@ -137,14 +227,13 @@ const actions = {
       commit('AUTH_SUCCESS', { token: state.token, user })
       return user
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '获取用户信息失败')
       // 如果令牌无效，登出用户
       if (error.response?.status === 401) {
         localStorage.removeItem('token')
         commit('LOGOUT')
         router.push('/login')
       }
-      throw error
+      handleApiError(commit, error)
     }
   },
   
@@ -229,14 +318,27 @@ const actions = {
   // 获取系统配置
   async getConfig({ commit }) {
     try {
-      const response = await api.getConfig()
+      const response = await api.getConfig();
+      console.log('获取系统配置成功:', response.data);
+      
+      // 只有明确设置为false时才禁用注册
+      const allowRegister = response.data && response.data.allow_register !== false;
+      
       commit('SET_CONFIG', { 
-        allowRegister: response.data.allow_register 
-      })
-      return response.data
+        allowRegister: allowRegister
+      });
+      return response.data;
     } catch (error) {
-      console.error('获取系统配置失败:', error)
-      return { allow_register: false }
+      console.error('获取系统配置失败:', error);
+      
+      // 检查是否为连接错误
+      if (error.fetchError && error.fetchError.isConnectionError) {
+        console.warn('无法连接到服务器，默认允许注册');
+      }
+      
+      // 默认设置为允许注册，防止配置获取失败时无法注册
+      commit('SET_CONFIG', { allowRegister: true });
+      return { allow_register: true };
     }
   }
 }

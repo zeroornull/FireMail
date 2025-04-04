@@ -63,7 +63,8 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
+import { mapActions } from 'vuex';
+import api from '@/services/api';
 
 export default {
   name: 'RegisterView',
@@ -73,11 +74,11 @@ export default {
       password: '',
       confirmPassword: '',
       loading: false,
-      error: ''
+      error: '',
+      registrationEnabled: true  // 默认假设允许注册
     };
   },
   computed: {
-    ...mapGetters('auth', ['registrationEnabled']),
     formValid() {
       return this.username.length >= 3 && 
              this.username.length <= 20 && 
@@ -86,7 +87,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions('auth', ['register']),
+    ...mapActions('auth', ['register', 'login', 'registerAndLogin']),
     async handleRegister() {
       // 验证表单
       if (!this.formValid) {
@@ -109,28 +110,84 @@ export default {
           throw new Error('系统当前不允许注册新用户，请联系管理员');
         }
         
-        await this.register({
+        console.log('开始注册流程，用户名:', this.username);
+        
+        // 使用新的注册并自动登录方法
+        const result = await this.registerAndLogin({
           username: this.username,
           password: this.password
         });
         
-        // 注册成功后跳转到登录页
-        this.$router.push({ 
-          name: 'login',
-          params: { registrationSuccess: true }
-        });
+        if (result.success) {
+          // 注册和登录都成功
+          console.log('注册和登录成功');
+          this.$router.push('/');
+        } else {
+          // 注册成功但登录失败
+          console.warn('注册成功但登录失败:', result.message);
+          this.$router.push({ 
+            name: 'login',
+            params: { 
+              registrationSuccess: true,
+              loginAttemptFailed: true
+            }
+          });
+        }
       } catch (error) {
-        this.error = error.response?.data?.message || error.message || '注册失败，请稍后再试';
+        console.error('注册失败:', error);
+        this.error = error.response?.data?.error || error.message || '注册失败，请稍后再试';
       } finally {
         this.loading = false;
+      }
+    },
+    
+    async checkRegistrationStatus() {
+      try {
+        console.log('开始检查注册功能状态...');
+        const response = await api.getConfig();
+        console.log('获取到系统配置:', response.data);
+        
+        // 明确处理allow_register为undefined或null的情况
+        if (response.data && response.data.allow_register === false) {
+          this.registrationEnabled = false;
+          this.error = '系统当前不允许注册新用户，请联系管理员';
+          console.log('注册功能已关闭');
+        } else {
+          // 其他所有情况都允许注册
+          this.registrationEnabled = true;
+          this.error = '';
+          console.log('注册功能已开启');
+        }
+      } catch (error) {
+        console.error('获取注册状态失败:', error);
+        // 获取配置失败时，默认允许注册
+        this.registrationEnabled = true;
+        this.error = '';
+        console.log('配置获取失败，默认允许注册');
+        
+        // 尝试再次获取配置（后台静默重试）
+        setTimeout(() => {
+          console.log('尝试再次获取注册状态...');
+          api.getConfig()
+            .then(response => {
+              console.log('重试获取配置成功:', response.data);
+              // 仅当明确禁用时更新状态
+              if (response.data && response.data.allow_register === false) {
+                this.registrationEnabled = false;
+                this.error = '系统当前不允许注册新用户，请联系管理员';
+                console.log('更新注册状态: 已禁用');
+              }
+            })
+            .catch(err => {
+              console.error('重试获取注册状态失败:', err);
+              // 保持默认允许注册
+            });
+        }, 3000); // 3秒后重试
       }
     }
   },
   mounted() {
-    // 检查是否允许注册
-    if (!this.registrationEnabled) {
-      this.error = '系统当前不允许注册新用户，请联系管理员';
-    }
+    this.checkRegistrationStatus();
   }
 };
 </script>

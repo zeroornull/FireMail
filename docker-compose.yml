@@ -2,6 +2,7 @@ version: '3'
 
 services:
   huohuo-email-assistant:
+    build: .
     image: luofengyuan/huohuo-email-assistant:latest
     container_name: huohuo-email-assistant
     restart: unless-stopped
@@ -14,13 +15,10 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - HOST=0.0.0.0
-      - FLASK_PORT=5000
-      - WS_PORT=8765
-      - FRONTEND_PORT=3000
+      - FLASK_PORT=5000  # 后端服务器端口
+      - WS_PORT=8765     # WebSocket服务器端口
+      - FRONTEND_PORT=3000  # 前端服务端口
       - JWT_SECRET_KEY=huohuo_email_secret_key
-      - ALLOW_REGISTER=true     # 必须为true才能启用注册功能
-      - API_URL=/api            # 前端API请求地址，保留/api开头表示使用相对路径
-      - WS_URL=/ws              # WebSocket连接地址，保留/ws开头表示使用相对路径
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s

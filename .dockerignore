@@ -1,20 +1,25 @@
-node_modules
-frontend/node_modules
-frontend/.vite
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-.env
-env/
-venv/
-ENV/
-*.log
-.git
-.gitignore
-.idea
-.vscode
-**/dist/*
-!frontend/dist
+# 忽略所有文件，然后再包含必要的文件
+*
+
+# 包含必要文件
+!backend/
+!frontend/src/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/vite.config.js
+!requirements.txt
+!docker-entrypoint.sh
+
+# 忽略不需要的目录和文件
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.git/
+**/.vscode/
+**/.idea/
+**/node_modules/
+**/.vite/
+frontend/dist/
 backend/data/*.db 

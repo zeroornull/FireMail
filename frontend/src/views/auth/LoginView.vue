@@ -7,6 +7,10 @@
         {{ error }}
       </div>
       
+      <div v-if="successMessage" class="alert alert-success">
+        {{ successMessage }}
+      </div>
+      
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label for="username">用户名</label>
@@ -58,26 +62,54 @@ export default {
       username: '',
       password: '',
       loading: false,
-      error: ''
+      error: '',
+      successMessage: ''
     };
+  },
+  created() {
+    // 检查是否从注册页面跳转过来
+    if (this.$route.params.registrationSuccess) {
+      this.successMessage = '注册成功！请登录您的新账户。';
+      
+      if (this.$route.params.loginAttemptFailed) {
+        this.error = '自动登录失败，请手动登录';
+      }
+      
+      // 如果有用户名和密码传递过来，自动填充
+      if (this.$route.params.username) {
+        this.username = this.$route.params.username;
+      }
+    }
   },
   methods: {
     ...mapActions('auth', ['login']),
     async handleLogin() {
       this.loading = true;
       this.error = '';
+      this.successMessage = '';
       
       try {
+        console.log('开始登录：', this.username);
         await this.login({
           username: this.username,
           password: this.password
         });
         
+        console.log('登录成功');
         // 登录成功后，检查是否需要重定向
         const redirectPath = this.$route.query.redirect || '/';
         this.$router.push(redirectPath);
       } catch (error) {
-        this.error = error.response?.data?.message || '登录失败，请检查用户名和密码';
+        console.error('登录失败:', error);
+        
+        // 提取更有用的错误信息
+        if (error.response?.data?.error) {
+          this.error = error.response.data.error;
+        } else if (error.message) {
+          this.error = error.message;
+        } else {
+          this.error = '登录失败，请检查用户名和密码';
+        }
       } finally {
         this.loading = false;
       }
@@ -199,5 +231,11 @@ export default {
   background-color: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 </style> 

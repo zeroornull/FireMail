@@ -29,7 +29,19 @@ os.makedirs(data_dir, exist_ok=True)
 
 # 初始化Flask应用
 app = Flask(__name__)
-CORS(app, supports_credentials=True)  # 允许跨域请求和凭据
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})  # 允许跨域请求和凭据
+
+# 增加捕获所有OPTIONS请求的处理方法，支持预检请求
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    """处理所有OPTIONS请求"""
+    response = make_response()
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 # JWT密钥
 JWT_SECRET = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
@@ -37,17 +49,16 @@ JWT_SECRET = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
 # 打印所有环境变量，帮助调试
 print("\n========= 环境变量 =========")
 for key, value in os.environ.items():
-    if key in ['JWT_SECRET_KEY', 'ALLOW_REGISTER', 'HOST', 'FLASK_PORT', 'WS_PORT', 'API_URL', 'WS_URL']:
+    if key in ['JWT_SECRET_KEY', 'HOST', 'FLASK_PORT', 'WS_PORT', 'API_URL', 'WS_URL']:
         print(f"{key}: {value}")
 print("===========================\n")
 
-# 是否允许注册新用户
-ALLOW_REGISTER_VAL = os.environ.get('ALLOW_REGISTER', 'false')
-ALLOW_REGISTER = ALLOW_REGISTER_VAL.lower() in ('true', '1', 'yes', 'y')
-logger.info(f"注册功能状态: ALLOW_REGISTER={ALLOW_REGISTER} (来自环境变量值: '{ALLOW_REGISTER_VAL}')")
-
 # 初始化数据库
 db = Database()
+
+# 确保注册功能默认开启，只通过数据库控制
+allow_register = db.is_registration_allowed()
+logger.info(f"系统启动: 注册功能状态 = {allow_register}")
 
 # 初始化邮件处理器
 email_processor = EmailBatchProcessor(db)
@@ -105,46 +116,72 @@ def admin_required(f):
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """用户登录"""
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    
-    if not username or not password:
-        return jsonify({'error': '用户名和密码不能为空'}), 400
-    
-    user = db.authenticate_user(username, password)
-    if not user:
-        return jsonify({'error': '用户名或密码错误'}), 401
-    
-    # 生成JWT令牌
-    token = jwt.encode({
-        'user_id': user['id'],
-        'username': user['username'],
-        'is_admin': user['is_admin'],
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-    }, JWT_SECRET, algorithm="HS256")
-    
-    # 创建响应
-    response = make_response(jsonify({
-        'token': token,
-        'user': {
-            'id': user['id'],
+    try:
+        data = request.json
+        if not data:
+            logger.error("登录请求没有JSON数据")
+            return jsonify({'error': '无效的请求数据格式'}), 400
+            
+        username = data.get('username')
+        password = data.get('password')
+        
+        logger.info(f"收到登录请求: 用户名={username}")
+        
+        if not username or not password:
+            logger.warning("登录失败: 用户名或密码为空")
+            return jsonify({'error': '用户名和密码不能为空'}), 400
+        
+        user = db.authenticate_user(username, password)
+        if not user:
+            logger.warning(f"登录失败: 用户名或密码错误, 用户名={username}")
+            return jsonify({'error': '用户名或密码错误'}), 401
+        
+        # 确保user对象包含所有必要属性
+        if 'id' not in user or 'username' not in user or 'is_admin' not in user:
+            logger.error(f"用户对象缺少必要字段: {user}")
+            return jsonify({'error': '内部服务器错误'}), 500
+        
+        # 生成JWT令牌
+        token = jwt.encode({
+            'user_id': user['id'],
             'username': user['username'],
-            'is_admin': user['is_admin']
+            'is_admin': user['is_admin'],
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        }, JWT_SECRET, algorithm="HS256")
+        
+        # 创建响应
+        response_data = {
+            'token': token,
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'is_admin': user['is_admin']
+            }
         }
-    }))
-    
-    # 设置Cookie
-    response.set_cookie(
-        'token', 
-        token, 
-        httponly=True, 
-        max_age=7*24*60*60,  # 7天
-        secure=False,  # 开发环境设为False，生产环境设为True
-        samesite='Lax'
-    )
-    
-    return response
+        
+        logger.info(f"登录成功: 用户名={username}, 用户ID={user['id']}")
+        
+        # 创建JSON响应并设置CORS头
+        response = make_response(jsonify(response_data))
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        
+        # 设置Cookie
+        response.set_cookie(
+            'token', 
+            token, 
+            httponly=True, 
+            max_age=7*24*60*60,  # 7天
+            secure=False,  # 开发环境设为False，生产环境设为True
+            samesite='Lax'
+        )
+        
+        logger.info(f"用户 {username} 登录成功")
+        return response
+    except Exception as e:
+        logger.error(f"登录过程中发生错误: {str(e)}")
+        return jsonify({'error': f'服务器错误: {str(e)}'}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
@@ -157,29 +194,40 @@ def logout():
 def register():
     """用户注册"""
     # 检查是否允许注册
-    if not ALLOW_REGISTER:
+    allow_register = db.is_registration_allowed()
+    logger.info(f"收到注册请求，当前注册功能状态: {allow_register}")
+    
+    if not allow_register:
+        logger.warning("注册功能已禁用，拒绝注册请求")
         return jsonify({'error': '注册功能已禁用'}), 403
     
     data = request.json
     username = data.get('username')
     password = data.get('password')
     
+    logger.info(f"注册用户名: {username}")
+    
     if not username or not password:
+        logger.warning("注册失败: 用户名或密码为空")
         return jsonify({'error': '用户名和密码不能为空'}), 400
     
     # 用户名格式验证
     if len(username) < 3 or len(username) > 20:
+        logger.warning("注册失败: 用户名长度不符合要求")
         return jsonify({'error': '用户名长度必须在3-20个字符之间'}), 400
     
     # 密码强度验证
     if len(password) < 6:
+        logger.warning("注册失败: 密码长度不符合要求")
         return jsonify({'error': '密码长度必须至少为6个字符'}), 400
     
     # 创建用户
     success, is_admin = db.create_user(username, password)
     if not success:
+        logger.warning(f"注册失败: 用户名 {username} 已存在")
         return jsonify({'error': '用户名已存在'}), 409
     
+    logger.info(f"注册成功: 用户名 {username}, 是否管理员: {is_admin}")
     return jsonify({
         'message': '注册成功', 
         'username': username,
@@ -311,10 +359,36 @@ def health_check():
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    """获取系统配置信息"""
-    return jsonify({
-        'allow_register': ALLOW_REGISTER
-    })
+    """获取系统配置"""
+    try:
+        # 确保从数据库获取最新的注册状态
+        allow_register = db.is_registration_allowed()
+        logger.info(f"获取系统配置: 注册功能状态 = {allow_register}")
+        
+        config = {
+            'allow_register': allow_register,
+            'server_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        # 设置CORS头，确保前端可以正常访问
+        response = jsonify(config)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET')
+        
+        logger.info(f"返回系统配置: {config}")
+        return response
+    except Exception as e:
+        logger.error(f"获取系统配置出错: {str(e)}")
+        # 返回默认配置，确保注册功能默认开启
+        default_config = {
+            'allow_register': True,
+            'server_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'error': f"配置获取错误: {str(e)}"
+        }
+        response = jsonify(default_config)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
 
 @app.route('/api/emails', methods=['GET'])
 @token_required
@@ -524,6 +598,22 @@ def import_emails(current_user):
         'failed': len(failed_lines),
         'failed_details': failed_lines
     })
+
+# 系统配置管理
+@app.route('/api/admin/config/registration', methods=['POST'])
+@token_required
+@admin_required
+def toggle_registration(current_user):
+    """管理员开启/关闭注册功能"""
+    data = request.json
+    allow = data.get('allow', False)
+    
+    if db.toggle_registration(allow):
+        action = "开启" if allow else "关闭"
+        logger.info(f"管理员 {current_user['username']} 已{action}注册功能")
+        return jsonify({'message': f'已成功{action}注册功能', 'allow_register': allow})
+    else:
+        return jsonify({'error': '更新注册配置失败'}), 500
 
 # 前端静态文件服务
 @app.route('/', defaults={'path': ''})

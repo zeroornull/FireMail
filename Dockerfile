@@ -1,12 +1,18 @@
 FROM python:3.12-slim
 
-# 设置工作目录
+# 设置工作目录和环境变量
 WORKDIR /app
+ENV HOST=0.0.0.0 \
+    FLASK_PORT=5000 \
+    WS_PORT=8765 \
+    FRONTEND_PORT=3000 \
+    TZ=Asia/Shanghai \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    JWT_SECRET_KEY=huohuo_email_secret_key
 
-# 安装Node.js、git和基础依赖
+# 安装Node.js和基础依赖（合并层）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs \
-    npm \
     curl \
     gnupg \
     ca-certificates \
@@ -15,37 +21,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g pnpm
+    && npm install -g pnpm serve \
+    # 创建数据目录
+    && mkdir -p /app/backend/data \
+    && chown -R nobody:nogroup /app/backend/data
 
-# 复制项目文件
-COPY . /app/
+# 先复制依赖相关文件并安装依赖
+COPY requirements.txt /app/
+COPY frontend/package.json frontend/package-lock.json /app/frontend/
+RUN pip install --no-cache-dir -r requirements.txt \
+    && cd /app/frontend \
+    && npm ci
 
-# 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 构建前端
+# 复制前端源代码并构建
 WORKDIR /app/frontend
-RUN npm ci && \
-    npm run build && \
-    npm install -g serve && \
-    rm -rf node_modules
+COPY frontend/src /app/frontend/src/
+COPY frontend/index.html frontend/vite.config.js /app/frontend/
+RUN npm run build && rm -rf node_modules
 
-# 回到主工作目录
+# 复制后端文件和启动脚本
 WORKDIR /app
-
-# 添加启动脚本并设置权限
+COPY backend /app/backend/
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
-
-# 指定默认环境变量
-ENV HOST=0.0.0.0 \
-    FLASK_PORT=5000 \
-    WS_PORT=8765 \
-    JWT_SECRET_KEY=huohuo_email_secret_key \
-    ALLOW_REGISTER=false
 
 # 暴露端口
 EXPOSE 5000 8765 3000
 
 # 启动命令
-ENTRYPOINT ["/app/docker-entrypoint.sh"] 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

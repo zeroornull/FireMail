@@ -13,21 +13,20 @@ export FLASK_PORT="${FLASK_PORT:-5000}"
 export WS_PORT="${WS_PORT:-8765}"
 export FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 export JWT_SECRET_KEY="${JWT_SECRET_KEY:-huohuo_email_secret_key}"
-export ALLOW_REGISTER="${ALLOW_REGISTER:-false}"
 export TZ="${TZ:-Asia/Shanghai}"
 
 echo "花火邮箱助手正在启动..."
 echo "后端API地址: http://$HOST:$FLASK_PORT"
 echo "WebSocket服务地址: ws://$HOST:$WS_PORT"
 echo "前端服务地址: http://$HOST:$FRONTEND_PORT"
-echo "注册功能状态: ${ALLOW_REGISTER}"
+echo "注册功能: 默认开启，第一个注册的用户为管理员，之后管理员可在系统设置中控制"
 
 # 创建前端环境变量文件
 mkdir -p /app/frontend/dist
 cat > /app/frontend/dist/env-config.js << EOF
 // 环境配置
-window.API_URL = '${API_URL:-/api}';
-window.WS_URL = '${WS_URL:-/ws}';
+window.API_URL = '/api';  // 使用相对路径
+window.WS_URL = '/ws';    // 使用相对路径
 console.log('env-config.js已加载，API_URL:', window.API_URL, 'WS_URL:', window.WS_URL);
 EOF
 
@@ -64,7 +63,7 @@ echo "启动前端服务..."
 npx serve -s dist -l "$FRONTEND_PORT" --config /tmp/nginx/serve.json &
 
 echo "等待前端服务启动..."
-sleep 2
+sleep 1
 
 # 启动Python后端应用
 cd /app

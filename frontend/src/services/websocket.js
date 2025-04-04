@@ -34,6 +34,7 @@ class WebSocketService {
   constructor() {
     this.socket = null;
     this.isConnected = false;
+    this.isAuthenticated = false; // 添加认证状态追踪
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectTimeoutId = null;
@@ -41,38 +42,25 @@ class WebSocketService {
     this.messageHandlers = {};
     this.connectHandlers = [];
     this.disconnectHandlers = [];
+    this.authSuccessHandlers = []; // 认证成功处理器
+    
+    // 心跳检测
+    this.heartbeatInterval = null;
+    this.heartbeatTimeout = null;
+    this.lastHeartbeatReceived = 0;
     
     this.url = this.getWebSocketUrl();
     console.log(`WebSocket服务URL: ${this.url}`);
   }
 
   getWebSocketUrl() {
-    // 优先使用window.WS_URL (通过env-config.js设置)
-    if (window.WS_URL) {
-      console.log('使用env-config中的WS_URL:', window.WS_URL);
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      // 如果WS_URL是相对路径，则添加主机名
-      if (window.WS_URL.startsWith('/')) {
-        return `${protocol}//${window.location.host}${window.WS_URL}`;
-      }
-      return window.WS_URL;
-    }
-    
-    // 使用Vite环境变量或动态计算
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
-    const port = import.meta.env.VITE_WS_PORT || (window.location.port ? window.location.port : '8765');
-    
-    // 使用与当前页面相同的端口，或默认端口
-    console.log(`构建WebSocket连接URL: protocol=${protocol}, host=${host}, port=${port}`);
-    
-    if (port === window.location.port) {
-      console.log('使用与当前页面相同的端口，通过路径连接WebSocket');
-      return `${protocol}://${host}/ws`;
-    } else {
-      console.log('使用指定端口连接WebSocket');
-      return `${protocol}://${host}:${port}`;
-    }
+    // 使用固定端口构建WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const hostname = window.location.hostname;
+    const wsPort = 8765;  // 固定使用8765端口
+    const url = `${protocol}//${hostname}:${wsPort}/ws`;
+    console.log('使用固定端口WebSocket URL:', url);
+    return url;
   }
 
   connect() {
@@ -81,6 +69,13 @@ class WebSocketService {
       console.log('WebSocket已经连接或正在连接中');
       return;
     }
+
+    // 先清除之前的心跳检测
+    this.clearHeartbeat();
+    
+    // 重置认证状态
+    this.isAuthenticated = false;
+    this.authAttempted = false;
 
     // 从localStorage获取token
     const token = localStorage.getItem('token');
@@ -94,18 +89,40 @@ class WebSocketService {
       console.log(`尝试连接WebSocket: ${this.url}`);
       this.socket = new WebSocket(this.url);
 
+      // 设置超时检测
+      const connectionTimeout = setTimeout(() => {
+        if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+          console.error('WebSocket连接超时');
+          this.socket.close();
+          // 会触发onclose事件，进而启动重连
+        }
+      }, 10000); // 10秒连接超时
+
       this.socket.onopen = () => {
         console.log('WebSocket连接成功');
+        clearTimeout(connectionTimeout);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
-        // 连接成功后发送认证消息
-        this.sendAuthMessage(token);
+        // 连接成功后立即发送认证消息
+        setTimeout(() => {
+          this.sendAuthMessage(token);
+        }, 500); // 延迟500ms，确保连接完全建立
+        
+        // 启动心跳检测
+        this.startHeartbeat();
       };
 
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          
+          // 处理心跳响应
+          if (message.type === 'heartbeat_response') {
+            this.handleHeartbeatResponse();
+            return;
+          }
+          
           this.handleMessage(message);
         } catch (error) {
           console.error('WebSocket消息解析失败:', error);
@@ -114,7 +131,9 @@ class WebSocketService {
 
       this.socket.onclose = (event) => {
         console.log(`WebSocket连接关闭: Code=${event.code}, Reason=${event.reason}`);
+        clearTimeout(connectionTimeout);
         this.isConnected = false;
+        this.clearHeartbeat();
         this.notifyDisconnect();
         
         // 自动重新连接，除非是正常关闭
@@ -126,6 +145,7 @@ class WebSocketService {
       this.socket.onerror = (error) => {
         console.error('WebSocket错误:', error);
         this.isConnected = false;
+        this.clearHeartbeat();
       };
     } catch (error) {
       console.error('创建WebSocket连接失败:', error);
@@ -137,19 +157,36 @@ class WebSocketService {
     
     try {
       // 发送认证消息
-      this.socket.send(JSON.stringify({
+      const authMessage = JSON.stringify({
         type: MessageTypes.AUTHENTICATE,
         token
-      }));
-      console.log('已发送WebSocket认证消息');
+      });
+      this.socket.send(authMessage);
+      console.log('已发送WebSocket认证消息:', MessageTypes.AUTHENTICATE);
+      
+      // 记录认证尝试
+      this.authAttempted = true;
     } catch (error) {
       console.error('发送WebSocket认证消息失败:', error);
+      // 如果发送认证消息失败，尝试重新连接
+      this.reconnect();
     }
   }
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log('达到最大重连次数，停止重连');
+      // 通知应用WebSocket连接失败
+      this.messageHandlers[MessageTypes.ERROR]?.forEach(handler => {
+        try {
+          handler({
+            type: MessageTypes.ERROR,
+            message: '无法连接到WebSocket服务器，请刷新页面重试或联系管理员'
+          });
+        } catch (e) {
+          console.error('发送WebSocket错误通知失败:', e);
+        }
+      });
       return;
     }
 
@@ -158,8 +195,8 @@ class WebSocketService {
       clearTimeout(this.reconnectTimeoutId);
     }
 
-    // 指数退避重连
-    const delay = this.baseDelay * Math.pow(2, this.reconnectAttempts);
+    // 指数退避重连，但最长不超过30秒
+    const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), 30000);
     console.log(`将在${delay}毫秒后尝试重新连接 (尝试 ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
     
     this.reconnectTimeoutId = setTimeout(() => {
@@ -168,27 +205,47 @@ class WebSocketService {
     }, delay);
   }
 
-  disconnect() {
-    if (this.socket) {
-      this.socket.close(1000, '正常关闭');
-      this.socket = null;
-      this.isConnected = false;
-      console.log('WebSocket连接已手动关闭');
-    }
-    
-    // 清除重连计时器
-    if (this.reconnectTimeoutId) {
-      clearTimeout(this.reconnectTimeoutId);
-      this.reconnectTimeoutId = null;
-    }
-  }
-
   send(type, data = {}) {
     if (!this.isConnected) {
       console.error('WebSocket未连接，无法发送消息');
+      // 尝试重新连接
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        console.log('尝试重新连接WebSocket...');
+        this.connect();
+      }
       return false;
     }
 
+    // 如果不是认证消息且未通过认证，先记录错误
+    if (type !== MessageTypes.AUTHENTICATE && !this.isAuthenticated) {
+      console.warn(`WebSocket未认证，不能发送[${type}]消息，将尝试重新认证`);
+      
+      // 尝试重新认证
+      const token = localStorage.getItem('token');
+      if (token) {
+        setTimeout(() => this.sendAuthMessage(token), 500);
+        
+        // 保存请求，认证后可能需要重发
+        this.pendingRequests = this.pendingRequests || [];
+        this.pendingRequests.push({type, data});
+        
+        // 设置超时重发
+        setTimeout(() => {
+          if (this.isAuthenticated && this.isConnected) {
+            console.log('认证成功，重新发送之前的请求:', type);
+            this.doSend(type, data);
+          }
+        }, 2000);
+      }
+      
+      return false;
+    }
+
+    return this.doSend(type, data);
+  }
+  
+  // 实际发送消息的方法
+  doSend(type, data = {}) {
     try {
       const message = JSON.stringify({
         type,
@@ -199,6 +256,12 @@ class WebSocketService {
       return true;
     } catch (error) {
       console.error('发送WebSocket消息失败:', error);
+      // 发送失败时尝试重新连接
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.isConnected = false;
+        this.isAuthenticated = false;
+        this.scheduleReconnect();
+      }
       return false;
     }
   }
@@ -211,10 +274,60 @@ class WebSocketService {
     if (type === MessageTypes.AUTH_RESULT) {
       if (message.success) {
         console.log('WebSocket认证成功');
+        // 设置认证状态标志
+        this.isAuthenticated = true;
+        // 执行认证成功回调
+        this.notifyAuthSuccess();
+        // 通知连接已建立
         this.notifyConnect();
+
+        // 处理之前因未认证而挂起的请求
+        if (this.pendingRequests && this.pendingRequests.length > 0) {
+          console.log(`处理${this.pendingRequests.length}个挂起的请求`);
+          
+          // 克隆一份，避免在处理过程中被修改
+          const requests = [...this.pendingRequests];
+          this.pendingRequests = [];
+          
+          // 延迟处理，确保认证状态已完全更新
+          setTimeout(() => {
+            requests.forEach(req => {
+              console.log('发送挂起的请求:', req.type);
+              this.doSend(req.type, req.data);
+            });
+          }, 500);
+        }
       } else {
         console.error('WebSocket认证失败:', message.error);
-        this.disconnect();
+        // 认证失败清除标志
+        this.isAuthenticated = false;
+        // 如果认证失败，尝试重新认证
+        const token = localStorage.getItem('token');
+        if (token) {
+          console.log('尝试重新进行WebSocket认证...');
+          setTimeout(() => this.sendAuthMessage(token), 1000);
+        } else {
+          this.disconnect();
+        }
+      }
+      return;
+    }
+    
+    // 处理错误消息，检查是否是认证错误
+    if (type === MessageTypes.ERROR && message.message === '请先进行认证') {
+      console.warn('收到未认证错误，检查认证状态');
+      // 只有在之前未认证的情况下才重试认证
+      if (!this.isAuthenticated) {
+        const token = localStorage.getItem('token');
+        if (token) {
+          console.log('尝试重新进行WebSocket认证...');
+          setTimeout(() => this.sendAuthMessage(token), 1000);
+        }
+      } else {
+        console.warn('认证状态不一致！服务器认为未认证但客户端认为已认证');
+        // 标记状态并重新连接
+        this.isAuthenticated = false;
+        this.reconnect();
       }
       return;
     }
@@ -276,13 +389,21 @@ class WebSocketService {
   }
 
   notifyConnect() {
-    this.connectHandlers.forEach(handler => {
-      try {
-        handler();
-      } catch (error) {
-        console.error('执行连接回调时出错:', error);
+    // 延迟执行回调，确保认证状态已设置
+    setTimeout(() => {
+      if (this.isAuthenticated) {
+        console.log('WebSocket已连接且已认证，执行连接回调');
+        this.connectHandlers.forEach(handler => {
+          try {
+            handler();
+          } catch (error) {
+            console.error('执行连接回调时出错:', error);
+          }
+        });
+      } else {
+        console.warn('WebSocket已连接但未认证，不执行连接回调');
       }
-    });
+    }, 500);
   }
 
   notifyDisconnect() {
@@ -323,6 +444,138 @@ class WebSocketService {
 
   importEmails(data) {
     return this.send(MessageTypes.IMPORT_EMAILS, { data });
+  }
+
+  // 心跳检测
+  startHeartbeat() {
+    this.lastHeartbeatReceived = Date.now();
+    
+    // 定期发送心跳
+    this.heartbeatInterval = setInterval(() => {
+      if (this.isConnected) {
+        try {
+          this.socket.send(JSON.stringify({ type: 'heartbeat' }));
+          console.log('已发送心跳消息');
+          
+          // 设置心跳超时检测
+          this.heartbeatTimeout = setTimeout(() => {
+            const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
+            // 如果超过30秒未收到心跳响应，认为连接已断开
+            if (timeSinceLastHeartbeat > 30000) {
+              console.error('心跳检测超时，重新连接WebSocket');
+              this.disconnect();
+              this.connect();
+            }
+          }, 10000); // 10秒超时
+        } catch (error) {
+          console.error('发送心跳消息失败:', error);
+          this.clearHeartbeat();
+          this.disconnect();
+          this.connect();
+        }
+      }
+    }, 20000); // 每20秒发送一次心跳
+  }
+  
+  handleHeartbeatResponse() {
+    console.log('收到心跳响应');
+    this.lastHeartbeatReceived = Date.now();
+    // 清除当前的心跳超时检测
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout = null;
+    }
+  }
+  
+  clearHeartbeat() {
+    // 清除心跳检测
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout = null;
+    }
+  }
+
+  // 重置WebSocket状态
+  resetState() {
+    // 清除心跳检测
+    this.clearHeartbeat();
+    
+    // 重置连接和认证状态
+    this.isConnected = false;
+    this.isAuthenticated = false;
+    this.authAttempted = false;
+    
+    // 清除重连计时器
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
+  }
+
+  // 重新连接WebSocket
+  reconnect() {
+    console.log('重新连接WebSocket...');
+    // 先断开现有连接并重置状态
+    this.disconnect();
+    
+    // 延迟一段时间后重新连接
+    setTimeout(() => {
+      // 连接前检查token
+      const token = localStorage.getItem('token');
+      if (token) {
+        console.log('使用现有token进行重连');
+        this.connect();
+      } else {
+        console.warn('没有有效token，无法重连');
+      }
+    }, 1000);
+  }
+
+  // 断开WebSocket连接
+  disconnect() {
+    // 先重置状态
+    this.resetState();
+    
+    // 关闭WebSocket连接
+    if (this.socket) {
+      try {
+        this.socket.close(1000, '正常关闭');
+      } catch (error) {
+        console.error('关闭WebSocket连接时出错:', error);
+      }
+      this.socket = null;
+      console.log('WebSocket连接已手动关闭');
+    }
+  }
+
+  // 添加认证成功回调
+  onAuthSuccess(handler) {
+    this.authSuccessHandlers.push(handler);
+    // 如果已经认证成功，立即调用
+    if (this.isAuthenticated) {
+      handler();
+    }
+  }
+
+  // 移除认证成功回调
+  offAuthSuccess(handler) {
+    this.authSuccessHandlers = this.authSuccessHandlers.filter(h => h !== handler);
+  }
+
+  // 通知认证成功
+  notifyAuthSuccess() {
+    this.authSuccessHandlers.forEach(handler => {
+      try {
+        handler();
+      } catch (error) {
+        console.error('执行认证成功回调时出错:', error);
+      }
+    });
   }
 }
 

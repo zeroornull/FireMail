@@ -76,6 +76,16 @@ class Database:
         )
         ''')
         
+        # 创建系统配置表
+        self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS system_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL UNIQUE,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
         # 检查emails表是否缺少user_id列，如果缺少则添加
         cursor = self.conn.execute("PRAGMA table_info(emails)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -84,8 +94,85 @@ class Database:
             self.conn.execute("ALTER TABLE emails ADD COLUMN user_id INTEGER")
             self.conn.commit()
         
+        # 初始化系统配置
+        self._init_system_config()
+        
         self.conn.commit()
         logger.info("数据库表结构初始化完成")
+    
+    def _init_system_config(self):
+        """初始化系统配置"""
+        # 检查是否存在注册配置，默认为开启
+        cursor = self.conn.execute("SELECT value FROM system_config WHERE key = 'allow_register'")
+        result = cursor.fetchone()
+        if not result:
+            logger.info("初始化系统配置: 默认允许注册")
+            self.conn.execute(
+                "INSERT INTO system_config (key, value) VALUES ('allow_register', 'true')"
+            )
+            self.conn.commit()
+        else:
+            # 确保注册功能默认开启，防止旧数据导致无法注册
+            if result['value'] != 'true':
+                logger.info("重置系统配置: 默认允许注册")
+                self.conn.execute(
+                    "UPDATE system_config SET value = 'true' WHERE key = 'allow_register'"
+                )
+                self.conn.commit()
+    
+    def get_system_config(self, key):
+        """获取系统配置"""
+        try:
+            cursor = self.conn.execute("SELECT value FROM system_config WHERE key = ?", (key,))
+            result = cursor.fetchone()
+            return result['value'] if result else None
+        except Exception as e:
+            logger.error(f"获取系统配置失败: key={key}, 错误: {str(e)}")
+            return None
+    
+    def set_system_config(self, key, value):
+        """设置系统配置"""
+        try:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO system_config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                (key, value)
+            )
+            self.conn.commit()
+            logger.info(f"系统配置已更新: {key} = {value}")
+            return True
+        except Exception as e:
+            logger.error(f"更新系统配置失败: {key} = {value}, 错误: {str(e)}")
+            return False
+    
+    def is_registration_allowed(self):
+        """检查是否允许注册"""
+        try:
+            allow_register = self.get_system_config('allow_register')
+            # 如果配置不存在，默认允许注册
+            if allow_register is None:
+                logger.info("注册配置不存在，设置为默认允许")
+                success = self.set_system_config('allow_register', 'true')
+                if not success:
+                    logger.warning("设置默认注册配置失败，仍然默认允许注册")
+                return True
+            
+            logger.info(f"读取到注册配置: {allow_register}")
+            return allow_register.lower() == 'true'
+        except Exception as e:
+            # 出现异常时，确保默认允许注册
+            logger.error(f"检查注册状态时出错: {str(e)}，默认允许注册")
+            return True
+    
+    def toggle_registration(self, allow):
+        """开启或关闭注册功能"""
+        value = 'true' if allow else 'false'
+        logger.info(f"正在{'开启' if allow else '关闭'}注册功能")
+        result = self.set_system_config('allow_register', value)
+        if result:
+            logger.info(f"注册功能已成功切换为: {value}")
+        else:
+            logger.error(f"切换注册功能失败，目标状态: {value}")
+        return result
     
     def _hash_password(self, password, salt):
         """密码哈希"""
