@@ -4,11 +4,16 @@ import axios from 'axios';
 const getBaseUrl = () => {
   console.group('API基础URL检测');
 
-  // 使用固定端口构建API URL
-  const hostname = window.location.hostname;
-  const apiPort = 5000;  // 固定使用5000端口
-  const url = `http://${hostname}:${apiPort}/api`;
-  console.log('使用固定端口API基础URL:', url);
+  // 优先使用全局配置的API_URL（由env-config.js设置）
+  if (window.API_URL) {
+    console.log('使用全局配置的API_URL:', window.API_URL);
+    console.groupEnd();
+    return window.API_URL;
+  }
+  
+  // 回退方案：使用相对路径
+  const url = '/api';
+  console.log('使用相对路径API基础URL:', url);
   console.groupEnd();
   return url;
 };
@@ -93,16 +98,10 @@ export const removeAuthHeader = () => {
   delete api.defaults.headers.common['Authorization'];
 }
 
-// 从localStorage读取token并设置
-const token = localStorage.getItem('token');
-if (token) {
-  setAuthHeader(token);
-}
-
 // API方法
-export default {
+const apiMethods = {
   // 系统配置
-  getConfig: (retryCount = 0, maxRetries = 3) => {
+  getConfig: function(retryCount = 0, maxRetries = 3) {
     console.log(`尝试获取系统配置 (尝试 ${retryCount + 1}/${maxRetries + 1})`);
     return api.get('/config')
       .catch(error => {
@@ -115,7 +114,7 @@ export default {
           
           return new Promise(resolve => {
             setTimeout(() => {
-              resolve(exports.default.getConfig(retryCount + 1, maxRetries));
+              resolve(this.getConfig(retryCount + 1, maxRetries));
             }, retryDelay);
           });
         }
@@ -257,4 +256,12 @@ export default {
   // 工具方法
   setAuthHeader,
   removeAuthHeader
-} 
+}
+
+// 从localStorage读取token并设置
+const token = localStorage.getItem('token');
+if (token) {
+  setAuthHeader(token);
+}
+
+export default apiMethods; 

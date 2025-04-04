@@ -5,7 +5,7 @@ set -e
 mkdir -p /app/backend/data
 
 # 检查数据权限
-chown -R nobody:nogroup /app/backend/data 2>/dev/null || true
+chown -R www-data:www-data /app/backend/data 2>/dev/null || true
 
 # 设置环境变量
 export HOST="${HOST:-0.0.0.0}"
@@ -18,7 +18,7 @@ export TZ="${TZ:-Asia/Shanghai}"
 echo "花火邮箱助手正在启动..."
 echo "后端API地址: http://$HOST:$FLASK_PORT"
 echo "WebSocket服务地址: ws://$HOST:$WS_PORT"
-echo "前端服务地址: http://$HOST:$FRONTEND_PORT"
+echo "前端服务地址: http://$HOST:80"
 echo "注册功能: 默认开启，第一个注册的用户为管理员，之后管理员可在系统设置中控制"
 
 # 创建前端环境变量文件
@@ -33,37 +33,17 @@ EOF
 echo "已创建环境配置文件，内容如下:"
 cat /app/frontend/dist/env-config.js
 
-# 创建Nginx配置文件用于反向代理
-mkdir -p /tmp/nginx
-cat > /tmp/nginx/serve.json << EOF
-{
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "http://localhost:$FLASK_PORT/api/\$1" },
-    { "source": "/ws", "destination": "ws://localhost:$WS_PORT" }
-  ],
-  "headers": [
-    {
-      "source": "**",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
-      ]
-    }
-  ]
-}
-EOF
+# 确保nginx日志目录存在
+mkdir -p /var/log/nginx
+chown -R www-data:www-data /var/log/nginx
 
-echo "已创建反向代理配置，内容如下:"
-cat /tmp/nginx/serve.json
+# 检查Nginx配置文件
+echo "检查Nginx配置..."
+nginx -t || (echo "Nginx配置错误" && exit 1)
 
-# 启动前端静态文件服务器
-cd /app/frontend
-echo "启动前端服务..."
-npx serve -s dist -l "$FRONTEND_PORT" --config /tmp/nginx/serve.json &
-
-echo "等待前端服务启动..."
-sleep 1
+# 启动Nginx服务
+echo "启动Nginx服务..."
+nginx &
 
 # 启动Python后端应用
 cd /app

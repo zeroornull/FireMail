@@ -54,12 +54,12 @@ class WebSocketService {
   }
 
   getWebSocketUrl() {
-    // 使用固定端口构建WebSocket URL
+    // 使用相对路径构建WebSocket URL
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    const wsPort = 8765;  // 固定使用8765端口
-    const url = `${protocol}//${hostname}:${wsPort}/ws`;
-    console.log('使用固定端口WebSocket URL:', url);
+    const port = window.location.port ? ':' + window.location.port : '';
+    const url = `${protocol}//${hostname}${port}/ws`;
+    console.log('使用相对路径WebSocket URL:', url);
     return url;
   }
 

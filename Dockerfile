@@ -11,11 +11,12 @@ ENV HOST=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     JWT_SECRET_KEY=huohuo_email_secret_key
 
-# 安装Node.js和基础依赖（合并层）
+# 安装Node.js、Nginx和基础依赖（合并层）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
     ca-certificates \
+    nginx \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
@@ -24,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g pnpm serve \
     # 创建数据目录
     && mkdir -p /app/backend/data \
-    && chown -R nobody:nogroup /app/backend/data
+    && chown -R www-data:www-data /app/backend/data
 
 # 先复制依赖相关文件并安装依赖
 COPY requirements.txt /app/
@@ -43,10 +44,12 @@ RUN npm run build && rm -rf node_modules
 WORKDIR /app
 COPY backend /app/backend/
 COPY docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
+COPY nginx.conf /etc/nginx/nginx.conf
+RUN chmod +x /app/docker-entrypoint.sh \
+    && chown -R www-data:www-data /app/frontend/dist
 
 # 暴露端口
-EXPOSE 5000 8765 3000
+EXPOSE 80
 
 # 启动命令
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

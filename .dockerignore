@@ -10,6 +10,7 @@
 !frontend/vite.config.js
 !requirements.txt
 !docker-entrypoint.sh
+!nginx.conf
 
 # 忽略不需要的目录和文件
 **/__pycache__/
