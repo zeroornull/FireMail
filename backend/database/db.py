@@ -76,6 +76,26 @@ class Database:
         )
         ''')
         
+        # 检查mail_records表是否存在去重索引，如果不存在则添加
+        try:
+            cursor = self.conn.execute("PRAGMA index_list(mail_records)")
+            index_exists = False
+            for index in cursor.fetchall():
+                if index['name'] == 'idx_mail_records_unique':
+                    index_exists = True
+                    break
+            
+            if not index_exists:
+                logger.info("为mail_records表添加去重索引")
+                self.conn.execute('''
+                CREATE UNIQUE INDEX idx_mail_records_unique 
+                ON mail_records(email_id, sender, subject, received_time)
+                ''')
+                self.conn.commit()
+                logger.info("去重索引添加完成")
+        except Exception as e:
+            logger.error(f"添加去重索引时出错: {str(e)}")
+        
         # 创建系统配置表
         self.conn.execute('''
         CREATE TABLE IF NOT EXISTS system_config (
@@ -395,12 +415,24 @@ class Database:
         """添加邮件记录"""
         logger.debug(f"添加邮件记录, 邮箱ID: {email_id}, 主题: {subject}")
         try:
+            # 先检查邮件是否已存在
+            cursor = self.conn.execute(
+                "SELECT id FROM mail_records WHERE email_id = ? AND sender = ? AND subject = ? AND received_time = ?",
+                (email_id, sender, subject, received_time)
+            )
+            exists = cursor.fetchone() is not None
+            
+            if exists:
+                logger.debug(f"邮件已存在，跳过: 邮箱ID={email_id}, 主题={subject}")
+                return False  # 邮件已存在，返回False表示没有添加新记录
+            
+            # 邮件不存在，添加新记录
             self.conn.execute(
                 "INSERT INTO mail_records (email_id, subject, sender, received_time, content) VALUES (?, ?, ?, ?, ?)",
                 (email_id, subject, sender, received_time, content)
             )
             self.conn.commit()
-            return True
+            return True  # 添加了新记录，返回True
         except Exception as e:
             logger.error(f"添加邮件记录失败: {str(e)}")
             return False

@@ -237,26 +237,30 @@ def check_mail(email_info, db, progress_callback=None):
         progress_callback(email_id, 90, f"正在保存{len(all_mail_records)}封邮件...")
     
     saved_count = 0
+    duplicate_count = 0
     for record in all_mail_records:
         try:
-            db.add_mail_record(
+            # add_mail_record现在返回布尔值，True表示添加了新记录，False表示重复
+            if db.add_mail_record(
                 email_id, 
                 record['subject'], 
                 record['sender'], 
                 record['received_time'], 
                 record['content']
-            )
-            saved_count += 1
+            ):
+                saved_count += 1
+            else:
+                duplicate_count += 1
         except Exception as e:
             logger.error(f"保存邮件记录失败: {str(e)}, 邮箱ID={email_id}, 主题={record.get('subject', 'Unknown')}")
     
     # 更新最后检查时间
     db.update_check_time(email_id)
     
-    logger.info(f"邮箱{email_address}(ID={email_id})检查完成，成功保存{saved_count}/{len(all_mail_records)}封邮件")
+    logger.info(f"邮箱{email_address}(ID={email_id})检查完成，成功保存{saved_count}/{len(all_mail_records)}封邮件，跳过{duplicate_count}封重复邮件")
     
     if progress_callback:
-        progress_callback(email_id, 100, f"完成: 发现{len(all_mail_records)}封邮件，保存{saved_count}封")
+        progress_callback(email_id, 100, f"完成: 发现{len(all_mail_records)}封邮件，新增{saved_count}封，跳过{duplicate_count}封重复邮件")
     
     return True
 
