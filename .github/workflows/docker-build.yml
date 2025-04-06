@@ -16,7 +16,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/huohuo-email-assistant
+            ${{ secrets.DOCKER_HUB_USERNAME }}/FireMail
           tags: |
             type=ref,event=branch
             type=ref,event=tag

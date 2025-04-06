@@ -41,7 +41,7 @@
 
 ```bash
 # 拉取镜像
-docker pull luofengyuan/huohuo-email-assistant:latest
+docker pull luofengyuan/FireMail:latest
 
 # 运行容器
 docker run -d \
@@ -49,7 +49,7 @@ docker run -d \
   -p 80:80 \
   -v ./data:/app/backend/data \
   --restart unless-stopped \
-  luofengyuan/huohuo-email-assistant:latest
+  luofengyuan/FireMail:latest
 ```
 
 ### 🐙 Docker-Compose部署
@@ -60,8 +60,8 @@ docker run -d \
 version: '3'
 
 services:
-  huohuo-email-assistant:
-    image: luofengyuan/huohuo-email-assistant:latest
+  FireMail:
+    image: luofengyuan/FireMail:latest
     container_name: firemail
     restart: unless-stopped
     ports:

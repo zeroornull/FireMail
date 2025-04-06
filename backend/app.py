@@ -17,11 +17,11 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("huohuo_email_assistant.log", encoding='utf-8'),
+        logging.FileHandler("FireMail.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger('huohuo-email-assistant')
+logger = logging.getLogger('FireMail')
 
 # 确保数据目录存在
 data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
