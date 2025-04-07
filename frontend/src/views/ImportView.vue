@@ -10,12 +10,22 @@
           :closable="false"
           show-icon
         >
-          <p>请按照以下格式输入邮箱信息，每行一个：</p>
-          <p><code>邮箱地址----密码----客户端ID----RefreshToken</code></p>
+          <p>请选择邮箱类型，然后按照相应格式输入邮箱信息，每行一个：</p>
+          <p v-if="formData.mailType === 'outlook'"><code>邮箱地址----密码----客户端ID----RefreshToken</code></p>
           <p>示例：example@outlook.com----password123----9e5f94bc-e8a4-4e73-b8be-63364c29d753----M.C511_BL2...</p>
         </el-alert>
         
         <el-form :model="formData" ref="formRef" :rules="rules" label-position="top">
+          <el-form-item label="选择邮箱类型" prop="mailType">
+            <el-select v-model="formData.mailType" placeholder="请选择邮箱类型">
+              <el-option
+                label="Outlook/Hotmail"
+                value="outlook"
+              />
+              <!-- 为以后扩展预留 -->
+            </el-select>
+          </el-form-item>
+          
           <el-form-item label="批量邮箱数据" prop="importData">
             <el-input
               v-model="formData.importData"
@@ -68,7 +78,7 @@
         </div>
       </template>
       
-      <div class="guide-content">
+      <div class="guide-content" v-if="formData.mailType === 'outlook'">
         <p>获取 RefreshToken 的步骤：</p>
         <ol>
           <li>登录您的 Microsoft 账户</li>
@@ -84,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Upload, RefreshRight } from '@element-plus/icons-vue'
@@ -99,11 +109,15 @@ const importResult = ref(null)
 
 // 表单数据
 const formData = reactive({
+  mailType: 'outlook', // 默认为outlook类型
   importData: ''
 })
 
 // 表单验证规则
 const rules = {
+  mailType: [
+    { required: true, message: '请选择邮箱类型', trigger: 'change' }
+  ],
   importData: [
     { required: true, message: '请输入邮箱数据', trigger: 'blur' },
     { validator: validateImportData, trigger: 'blur' }
@@ -124,31 +138,59 @@ function validateImportData(rule, value, callback) {
     const line = lines[i].trim()
     if (!line) continue
     
-    const parts = line.split('----')
-    if (parts.length !== 4) {
-      hasError = true
-      callback(new Error(`第 ${i + 1} 行格式错误，请使用"----"分隔邮箱、密码、客户端ID和RefreshToken`))
-      break
+    // 根据不同邮箱类型进行不同的验证
+    if (formData.mailType === 'outlook') {
+      const parts = line.split('----')
+      if (parts.length !== 4) {
+        hasError = true
+        callback(new Error(`第 ${i + 1} 行格式错误，请使用"----"分隔邮箱、密码、客户端ID和RefreshToken`))
+        break
+      }
+      
+      if (!parts[0] || !parts[1] || !parts[2] || !parts[3]) {
+        hasError = true
+        callback(new Error(`第 ${i + 1} 行有空白字段，所有字段都必须填写`))
+        break
+      }
+      
+      // 简单的邮箱格式检查
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parts[0])) {
+        hasError = true
+        callback(new Error(`第 ${i + 1} 行邮箱格式不正确`))
+        break
+      }
     }
-    
-    if (!parts[0] || !parts[1] || !parts[2] || !parts[3]) {
-      hasError = true
-      callback(new Error(`第 ${i + 1} 行有空白字段，所有字段都必须填写`))
-      break
-    }
-    
-    // 简单的邮箱格式检查
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parts[0])) {
-      hasError = true
-      callback(new Error(`第 ${i + 1} 行邮箱格式不正确`))
-      break
-    }
+    // 未来可在此处添加其他邮箱类型的验证逻辑
   }
   
   if (!hasError) {
     callback()
   }
 }
+
+// 处理WebSocket导入结果
+const handleImportResult = (result) => {
+  importResult.value = result
+  loading.value = false
+  
+  if (result.success > 0) {
+    ElMessage.success(`成功导入 ${result.success} 个邮箱`)
+  } else {
+    ElMessage.warning('没有成功导入任何邮箱，请检查导入数据')
+  }
+  
+  // 刷新邮箱列表
+  emailsStore.fetchEmails()
+}
+
+// 注册和移除WebSocket消息处理器
+onMounted(() => {
+  WebSocketService.onMessage('import_result', handleImportResult)
+})
+
+onUnmounted(() => {
+  WebSocketService.offMessage('import_result', handleImportResult)
+})
 
 // 提交表单
 async function submitForm() {
@@ -158,15 +200,22 @@ async function submitForm() {
     await formRef.value.validate()
     loading.value = true
     
+    // 准备发送的数据，添加邮箱类型标识
+    const importDataWithType = {
+      data: formData.importData.trim(),
+      mailType: formData.mailType
+    }
+    
     // 如果WebSocket已连接，则使用WebSocket导入
     if (WebSocketService.isConnected) {
       // 使用WebSocket发送导入请求
-      WebSocketService.importEmails(formData.importData.trim())
+      WebSocketService.importEmails(importDataWithType)
       
       ElMessage.info('正在处理导入请求，请稍候...')
+      // 结果将通过WebSocket消息回调处理
     } else {
       // 否则使用API导入
-      const result = await emailsStore.importEmails(formData.importData.trim())
+      const result = await emailsStore.importEmails(importDataWithType)
       importResult.value = result
       
       if (result.success > 0) {
@@ -177,7 +226,6 @@ async function submitForm() {
     }
   } catch (error) {
     ElMessage.error(error.message || '表单验证失败')
-  } finally {
     loading.value = false
   }
 }

@@ -136,6 +136,7 @@
   - `password`: 邮箱密码
   - `client_id`: 客户端 ID
   - `refresh_token`: 刷新令牌
+  - `mail_type`: 邮箱类型，默认为 "outlook"
 - **返回**:
   - 成功: `{ message: "邮箱 xxx@example.com 添加成功" }`
   - 失败: `{ error: "错误信息" }`
@@ -204,6 +205,7 @@
 - **权限**: 需要认证
 - **参数**:
   - `data`: 导入数据（每行格式：邮箱----密码----客户端ID----刷新令牌）
+  - `mail_type`: 邮箱类型，默认为 "outlook"
 - **返回**:
   - 成功: `{ total: x, success: y, failed: z, failed_details: [...] }`
   - 失败: `{ error: "错误信息" }`
@@ -255,7 +257,7 @@ WebSocket API 提供了实时通信功能，用于更新前端界面和推送邮
    - 响应: `{ type: "emails_list", data: [...] }`
 
 2. **添加邮箱**
-   - 请求: `{ action: "add_email", email: "xxx@example.com", password: "xxx", client_id: "xxx", refresh_token: "xxx" }`
+   - 请求: `{ action: "add_email", email: "xxx@example.com", password: "xxx", client_id: "xxx", refresh_token: "xxx", mail_type: "outlook" }`
    - 响应: `{ type: "success", message: "Email xxx@example.com added successfully" }`
 
 3. **删除邮箱**
@@ -272,7 +274,7 @@ WebSocket API 提供了实时通信功能，用于更新前端界面和推送邮
    - 响应: `{ type: "mail_records", email_id: 1, records: [...] }`
 
 6. **导入邮箱**
-   - 请求: `{ action: "import_emails", data: "邮箱----密码----客户端ID----刷新令牌\n..." }`
+   - 请求: `{ action: "import_emails", data: { data: "邮箱----密码----客户端ID----刷新令牌\n...", mailType: "outlook" } }`
    - 响应: `{ type: "import_result", total: x, success: y, failed: z, failed_details: [...] }`
 
 注意：所有操作响应中如有错误，将返回 `{ type: "error", message: "错误信息" }`。 

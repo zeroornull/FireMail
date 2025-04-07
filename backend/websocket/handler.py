@@ -3,6 +3,8 @@ import asyncio
 import logging
 import websockets
 from websockets.exceptions import ConnectionClosed
+import os
+import jwt
 
 logger = logging.getLogger('websocket_handler')
 
@@ -13,6 +15,7 @@ class WebSocketHandler:
         self.connections = set()
         self.email_processor = None
         self.db = None
+        self.connected_clients = {}
     
     def set_dependencies(self, db, email_processor):
         """设置依赖的数据库和邮件处理器"""
@@ -24,9 +27,17 @@ class WebSocketHandler:
         self.connections.add(websocket)
         logger.info(f"New client connected. Total connections: {len(self.connections)}")
     
+    async def authenticate_client(self, websocket, user_info):
+        """保存客户端认证信息"""
+        self.connected_clients[websocket] = user_info
+        logger.info(f"Client authenticated: {user_info.get('username', 'unknown')}")
+    
     async def unregister(self, websocket):
         """注销WebSocket连接"""
         self.connections.remove(websocket)
+        # 清除客户端信息
+        if websocket in self.connected_clients:
+            del self.connected_clients[websocket]
         logger.info(f"Client disconnected. Total connections: {len(self.connections)}")
     
     async def broadcast(self, message):
@@ -45,10 +56,48 @@ class WebSocketHandler:
         await websocket.send(json.dumps(message))
     
     async def handle_message(self, websocket, message_str):
-        """处理从客户端接收到的消息"""
+        """处理接收到的消息"""
         try:
             message = json.loads(message_str)
             action = message.get('action')
+            
+            # 处理认证消息
+            if action == 'authenticate':
+                token = message.get('token')
+                if token:
+                    # 验证token并获取用户信息
+                    user_info = self.validate_token(token)
+                    if user_info:
+                        await self.authenticate_client(websocket, user_info)
+                        await self.send_to_client(websocket, {
+                            'type': 'auth_result',
+                            'success': True,
+                            'user': user_info
+                        })
+                        return
+                
+                # 认证失败
+                await self.send_to_client(websocket, {
+                    'type': 'auth_result',
+                    'success': False,
+                    'message': 'Invalid token'
+                })
+                return
+            
+            # 检查客户端是否已认证
+            if websocket not in self.connected_clients:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': 'Unauthorized, please authenticate first'
+                })
+                return
+                
+            if not action:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': 'No action specified'
+                })
+                return
             
             if action == 'get_all_emails':
                 await self.handle_get_all_emails(websocket)
@@ -58,7 +107,16 @@ class WebSocketHandler:
                 password = message.get('password')
                 client_id = message.get('client_id')
                 refresh_token = message.get('refresh_token')
-                await self.handle_add_email(websocket, email, password, client_id, refresh_token)
+                mail_type = message.get('mail_type', 'outlook')
+                
+                if not all([email, password, client_id, refresh_token]):
+                    await self.send_to_client(websocket, {
+                        'type': 'error',
+                        'message': 'Missing email information'
+                    })
+                    return
+                
+                await self.handle_add_email(websocket, email, password, client_id, refresh_token, mail_type)
             
             elif action == 'delete_emails':
                 email_ids = message.get('email_ids', [])
@@ -91,7 +149,7 @@ class WebSocketHandler:
             logger.error(f"Error handling message: {str(e)}")
             await self.send_to_client(websocket, {
                 'type': 'error',
-                'message': f'Error: {str(e)}'
+                'message': f'Server error: {str(e)}'
             })
     
     async def handle_get_all_emails(self, websocket):
@@ -104,30 +162,26 @@ class WebSocketHandler:
             'data': emails_list
         })
     
-    async def handle_add_email(self, websocket, email, password, client_id, refresh_token):
+    async def handle_add_email(self, websocket, email, password, client_id, refresh_token, mail_type='outlook'):
         """处理添加邮箱的请求"""
-        if not all([email, password, client_id, refresh_token]):
-            await self.send_to_client(websocket, {
-                'type': 'error',
-                'message': 'All fields are required'
-            })
-            return
+        # 添加邮箱到数据库
+        success = self.db.add_email(email, password, client_id, refresh_token, mail_type)
         
-        success = self.db.add_email(email, password, client_id, refresh_token)
         if success:
             await self.send_to_client(websocket, {
                 'type': 'success',
                 'message': f'Email {email} added successfully'
             })
+            
             # 通知所有客户端更新
             await self.broadcast({
                 'type': 'email_added',
-                'message': f'New email added: {email}'
+                'email': email
             })
         else:
             await self.send_to_client(websocket, {
                 'type': 'error',
-                'message': f'Email {email} already exists'
+                'message': f'Email {email} already exists or could not be added'
             })
     
     async def handle_delete_emails(self, websocket, email_ids):
@@ -215,21 +269,49 @@ class WebSocketHandler:
             'data': mail_records_list
         })
     
-    async def handle_import_emails(self, websocket, data):
+    async def handle_import_emails(self, websocket, data, mail_type='outlook'):
         """处理批量导入邮箱的请求"""
-        if not data:
+        # 获取用户信息
+        user_info = self.connected_clients.get(websocket)
+        if not user_info:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': 'Unauthorized'
+            })
+            return
+        
+        user_id = user_info.get('id')
+        if not user_id:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': 'Invalid user information'
+            })
+            return
+        
+        # 处理新旧两种格式
+        if isinstance(data, dict):
+            import_data = data.get('data', '')
+            mail_type = data.get('mail_type', 'outlook')
+        else:
+            import_data = data
+        
+        if not import_data:
             await self.send_to_client(websocket, {
                 'type': 'error',
                 'message': 'No data provided'
             })
             return
         
-        lines = data.strip().split('\n')
+        lines = import_data.strip().split('\n')
         success_count = 0
         failed_lines = []
         
         for line_number, line in enumerate(lines, 1):
-            parts = line.strip().split('----')
+            line = line.strip()
+            if not line:
+                continue
+                
+            parts = line.split('----')
             if len(parts) != 4:
                 failed_lines.append((line_number, line, 'Invalid format'))
                 continue
@@ -239,11 +321,15 @@ class WebSocketHandler:
                 failed_lines.append((line_number, line, 'Missing required fields'))
                 continue
             
-            success = self.db.add_email(email, password, client_id, refresh_token)
-            if success:
-                success_count += 1
-            else:
-                failed_lines.append((line_number, line, 'Email already exists'))
+            try:
+                success = self.db.add_email(user_id, email, password, client_id, refresh_token, mail_type)
+                if success:
+                    success_count += 1
+                else:
+                    failed_lines.append((line_number, line, 'Email already exists'))
+            except Exception as e:
+                logger.error(f"Error adding email: {str(e)}")
+                failed_lines.append((line_number, line, f'Error: {str(e)}'))
         
         result = {
             'type': 'import_result',
@@ -264,6 +350,9 @@ class WebSocketHandler:
                 'type': 'emails_imported',
                 'count': success_count
             })
+            
+            # 记录日志
+            logger.info(f"User {user_id} imported {success_count} emails. Failed: {len(failed_lines)}")
     
     async def handle_client(self, websocket, path):
         """处理客户端连接"""
@@ -287,4 +376,37 @@ class WebSocketHandler:
         if not self.db or not self.email_processor:
             raise ValueError("Database and EmailProcessor must be set before running")
         
-        asyncio.run(self.start_server()) 
+        asyncio.run(self.start_server())
+    
+    def validate_token(self, token):
+        """验证JWT Token"""
+        if not token:
+            return None
+            
+        try:
+            # 解码JWT令牌
+            import jwt
+            
+            # 使用环境变量中的JWT密钥，默认使用固定值
+            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'huohuo_email_secret_key')
+            
+            # 解码JWT令牌
+            data = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+            
+            # 检查用户是否存在
+            user = self.db.get_user_by_id(data['user_id'])
+            if not user:
+                return None
+            
+            # 返回完整的用户信息
+            return {
+                'id': user['id'],
+                'username': user.get('username', 'unknown'),
+                'is_admin': user.get('is_admin', False)
+            }
+        except jwt.ExpiredSignatureError:
+            logger.warning("令牌已过期")
+            return None
+        except Exception as e:
+            logger.error(f"令牌验证失败: {str(e)}")
+            return None 

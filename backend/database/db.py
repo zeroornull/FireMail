@@ -35,16 +35,16 @@ class Database:
         self.conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
+            username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             salt TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT 0,
+            is_admin INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
         
-        # 创建邮箱表 (添加user_id外键)
+        # 创建邮箱表
         self.conn.execute('''
         CREATE TABLE IF NOT EXISTS emails (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,13 +54,24 @@ class Database:
             client_id TEXT NOT NULL,
             refresh_token TEXT NOT NULL,
             access_token TEXT,
+            mail_type TEXT DEFAULT 'outlook',
             last_check_time TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            UNIQUE(user_id, email)
+            UNIQUE(user_id, email),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         ''')
+        
+        # 检查是否需要添加mail_type列
+        try:
+            cursor = self.conn.execute("SELECT mail_type FROM emails LIMIT 1")
+            cursor.fetchone()  # 尝试获取一行，如果没有mail_type列，会引发异常
+        except sqlite3.OperationalError:
+            logger.info("正在添加邮箱类型字段...")
+            self.conn.execute("ALTER TABLE emails ADD COLUMN mail_type TEXT DEFAULT 'outlook'")
+            self.conn.commit()
+            logger.info("邮箱类型字段添加成功，默认值为'outlook'")
         
         # 创建邮件记录表
         self.conn.execute('''
@@ -301,17 +312,17 @@ class Database:
         return cursor.fetchall()
     
     # 邮箱相关方法 (修改为包含user_id)
-    def add_email(self, user_id, email, password, client_id, refresh_token):
+    def add_email(self, user_id, email, password, client_id, refresh_token, mail_type='outlook'):
         """添加新的邮箱账号"""
         try:
-            logger.info(f"尝试添加邮箱: {email} (用户ID: {user_id})")
+            logger.info(f"尝试添加邮箱: {email} (用户ID: {user_id}, 类型: {mail_type})")
             cursor = self.conn.execute(
-                "INSERT INTO emails (user_id, email, password, client_id, refresh_token) VALUES (?, ?, ?, ?, ?)",
-                (user_id, email, password, client_id, refresh_token)
+                "INSERT INTO emails (user_id, email, password, client_id, refresh_token, mail_type) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, email, password, client_id, refresh_token, mail_type)
             )
             self.conn.commit()
             email_id = cursor.lastrowid
-            logger.info(f"邮箱添加成功: {email}, ID: {email_id}")
+            logger.info(f"邮箱添加成功: {email}, ID: {email_id}, 类型: {mail_type}")
             return email_id
         except sqlite3.IntegrityError:
             # 邮箱已存在
@@ -331,6 +342,15 @@ class Database:
             )
         else:
             cursor = self.conn.execute("SELECT * FROM emails ORDER BY created_at DESC")
+        return cursor.fetchall()
+    
+    def get_emails_by_user_id(self, user_id):
+        """根据用户ID获取所有邮箱账号"""
+        logger.debug(f"获取用户ID: {user_id} 的所有邮箱账号")
+        cursor = self.conn.execute(
+            "SELECT * FROM emails WHERE user_id = ? ORDER BY created_at DESC", 
+            (user_id,)
+        )
         return cursor.fetchall()
     
     def get_email_by_id(self, email_id, user_id=None):
@@ -453,6 +473,76 @@ class Database:
             (email_id,)
         )
         return cursor.fetchall()
+    
+    def search_mail_records(self, email_ids, query, search_in_subject=True, search_in_sender=True, search_in_recipient=False, search_in_content=True):
+        """根据条件搜索邮件记录
+        
+        Args:
+            email_ids: 要搜索的邮箱ID列表
+            query: 搜索关键词
+            search_in_subject: 是否搜索主题
+            search_in_sender: 是否搜索发件人
+            search_in_recipient: 是否搜索收件人
+            search_in_content: 是否搜索正文内容
+        
+        Returns:
+            符合条件的邮件记录列表
+        """
+        if not email_ids or not query:
+            return []
+            
+        logger.info(f"搜索邮件: 关键词={query}, 邮箱IDs={email_ids}, 范围: 主题={search_in_subject}, 发件人={search_in_sender}, 收件人={search_in_recipient}, 正文={search_in_content}")
+        
+        # 准备SQL查询条件
+        conditions = []
+        params = []
+        
+        # 添加邮箱ID条件
+        placeholders = ','.join(['?'] * len(email_ids))
+        conditions.append(f"email_id IN ({placeholders})")
+        params.extend(email_ids)
+        
+        # 添加搜索字段条件
+        search_conditions = []
+        if search_in_subject:
+            search_conditions.append("subject LIKE ?")
+            params.append(f"%{query}%")
+        
+        if search_in_sender:
+            search_conditions.append("sender LIKE ?")
+            params.append(f"%{query}%")
+        
+        if search_in_content:
+            search_conditions.append("content LIKE ?")
+            params.append(f"%{query}%")
+        
+        # 收件人暂时用不到，因为数据库中没有专门的收件人字段
+        # 如果需要，可以从邮件内容中解析或在数据库中添加recipient字段
+        
+        # 如果没有任何搜索条件，直接返回空列表
+        if not search_conditions:
+            return []
+            
+        # 将所有搜索条件用OR连接
+        conditions.append(f"({' OR '.join(search_conditions)})")
+        
+        # 构建最终的SQL查询
+        sql = f"""
+            SELECT mr.*, e.email as recipient 
+            FROM mail_records mr
+            JOIN emails e ON mr.email_id = e.id
+            WHERE {' AND '.join(conditions)}
+            ORDER BY mr.received_time DESC
+        """
+        
+        try:
+            cursor = self.conn.execute(sql, params)
+            results = cursor.fetchall()
+            logger.info(f"搜索结果: 找到 {len(results)} 条记录")
+            return [dict(result) for result in results]
+        except Exception as e:
+            logger.error(f"搜索邮件记录失败: {str(e)}")
+            return []
     
     def close(self):
         """关闭数据库连接"""

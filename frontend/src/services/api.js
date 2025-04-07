@@ -220,12 +220,13 @@ const apiMethods = {
     return api.get(`/emails/${id}`);
   },
   
-  addEmail: (email, password, clientId, refreshToken) => {
+  addEmail: (email, password, clientId, refreshToken, mailType = 'outlook') => {
     return api.post('/emails', {
       email,
       password,
       client_id: clientId,
-      refresh_token: refreshToken
+      refresh_token: refreshToken,
+      mail_type: mailType
     });
   },
   
@@ -237,20 +238,47 @@ const apiMethods = {
     return api.post('/emails/batch_delete', { email_ids: ids });
   },
   
-  checkEmail: (id) => {
-    return api.post(`/emails/${id}/check`);
+  checkEmail: (emailId) => {
+    return api.post(`/emails/${emailId}/check`);
   },
   
-  batchCheckEmails: (ids) => {
-    return api.post('/emails/batch_check', { email_ids: ids });
+  batchCheckEmails: (emailIds) => {
+    return api.post('/emails/batch_check', { email_ids: emailIds });
   },
   
   getMailRecords: (emailId) => {
     return api.get(`/emails/${emailId}/mail_records`);
   },
   
-  importEmails: (data) => {
-    return api.post('/emails/import', { data });
+  getEmailPassword: (emailId) => {
+    return api.get(`/emails/${emailId}/password`);
+  },
+  
+  importEmails: (data, mailType) => {
+    return api.post('/emails/import', { data, mail_type: mailType });
+  },
+  
+  search: (query, searchIn = []) => {
+    return api.post('/search', { query, search_in: searchIn });
+  },
+  
+  // 邮箱相关接口
+  emails: {
+    getAll: () => api.get('/emails'),
+    getPassword: (emailId) => api.get(`/emails/${emailId}/password`),
+    getMailRecords: (emailId) => api.get(`/emails/${emailId}/mail_records`),
+    add: (email, password, clientId, refreshToken, mailType) => api.post('/emails', { 
+      email, 
+      password, 
+      client_id: clientId, 
+      refresh_token: refreshToken,
+      mail_type: mailType
+    }),
+    check: (emailId) => api.post(`/emails/${emailId}/check`),
+    delete: (emailId) => api.delete(`/emails/${emailId}`),
+    batchCheck: (emailIds) => api.post('/emails/batch_check', { email_ids: emailIds }),
+    batchDelete: (emailIds) => api.post('/emails/batch_delete', { email_ids: emailIds }),
+    import: (data) => api.post('/emails/import', data)
   },
   
   // 工具方法

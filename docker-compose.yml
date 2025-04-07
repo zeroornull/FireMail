@@ -1,10 +1,10 @@
 version: '3'
 
 services:
-  FireMail:
+  firemail:
     build: .
-    image: luofengyuan/FireMail:latest
-    container_name: FireMail
+    image: luofengyuan/firemail:latest
+    container_name: firemail
     restart: unless-stopped
     ports:
       - "80:80"  # 只暴露一个端口，通过Nginx进行反向代理

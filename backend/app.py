@@ -411,11 +411,12 @@ def add_email(current_user):
     password = data.get('password')
     client_id = data.get('client_id')
     refresh_token = data.get('refresh_token')
+    mail_type = data.get('mail_type', 'outlook')
     
     if not all([email, password, client_id, refresh_token]):
         return jsonify({'error': '所有字段都是必需的'}), 400
     
-    success = db.add_email(current_user['id'], email, password, client_id, refresh_token)
+    success = db.add_email(current_user['id'], email, password, client_id, refresh_token, mail_type)
     if success:
         return jsonify({'message': f'邮箱 {email} 添加成功'})
     else:
@@ -565,38 +566,65 @@ def get_mail_records(current_user, email_id):
 @token_required
 def import_emails(current_user):
     """批量导入邮箱"""
-    data = request.json
-    import_data = data.get('data', '')
+    data = request.json.get('data')
+    mail_type = request.json.get('mail_type', 'outlook')
     
-    if not import_data:
-        return jsonify({'error': '未提供数据'}), 400
+    if not data:
+        return jsonify({'error': '导入数据不能为空'}), 400
     
-    lines = import_data.strip().split('\n')
+    # 解析导入的数据
+    lines = data.strip().split('\n')
+    total = len(lines)
     success_count = 0
-    failed_lines = []
+    failed_details = []
     
-    for line_number, line in enumerate(lines, 1):
-        parts = line.strip().split('----')
-        if len(parts) != 4:
-            failed_lines.append({'line': line_number, 'content': line, 'reason': '格式无效'})
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
             continue
         
-        email, password, client_id, refresh_token = parts
-        if not all([email, password, client_id, refresh_token]):
-            failed_lines.append({'line': line_number, 'content': line, 'reason': '缺少必需字段'})
-            continue
-        
-        success = db.add_email(current_user['id'], email, password, client_id, refresh_token)
-        if success:
-            success_count += 1
-        else:
-            failed_lines.append({'line': line_number, 'content': line, 'reason': '邮箱已存在'})
+        try:
+            parts = line.split('----')
+            if len(parts) != 4:
+                failed_details.append({
+                    'line': i + 1,
+                    'content': line,
+                    'reason': '格式错误，需要4个字段'
+                })
+                continue
+            
+            email, password, client_id, refresh_token = parts
+            if not all([email, password, client_id, refresh_token]):
+                failed_details.append({
+                    'line': i + 1,
+                    'content': line,
+                    'reason': '有空白字段'
+                })
+                continue
+            
+            success = db.add_email(current_user['id'], email, password, client_id, refresh_token, mail_type)
+            if success:
+                success_count += 1
+            else:
+                failed_details.append({
+                    'line': i + 1,
+                    'content': line,
+                    'reason': '邮箱地址已存在'
+                })
+        except Exception as e:
+            logger.error(f"导入邮箱出错: {str(e)}")
+            failed_details.append({
+                'line': i + 1,
+                'content': line,
+                'reason': f'导入异常: {str(e)}'
+            })
     
+    # 返回导入结果
     return jsonify({
-        'total': len(lines),
+        'total': total,
         'success': success_count,
-        'failed': len(failed_lines),
-        'failed_details': failed_lines
+        'failed': len(failed_details),
+        'failed_details': failed_details
     })
 
 # 系统配置管理
@@ -634,6 +662,70 @@ def serve_frontend(path):
     else:
         # 如果文件不存在，返回 index.html 让前端路由处理
         return send_from_directory(frontend_dir, 'index.html')
+
+@app.route('/api/emails/<int:email_id>/password', methods=['GET'])
+@token_required
+def get_email_password(current_user, email_id):
+    """获取指定邮箱的密码"""
+    try:
+        email = db.get_email_by_id(email_id)
+        if not email:
+            return jsonify({'error': '邮箱不存在'}), 404
+        
+        # 验证是否为当前用户的邮箱或管理员
+        if email['user_id'] != current_user['id'] and not current_user['is_admin']:
+            return jsonify({'error': '无权访问此邮箱'}), 403
+        
+        return jsonify({'password': email['password']})
+    except Exception as e:
+        logger.error(f"获取邮箱密码失败: {str(e)}")
+        return jsonify({'error': f'服务器错误: {str(e)}'}), 500
+
+@app.route('/api/search', methods=['POST'])
+@token_required
+def search_emails(current_user):
+    """搜索邮件内容"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据格式'}), 400
+            
+        query = data.get('query', '').strip()
+        search_in = data.get('search_in', [])  # 可以包含 'subject', 'sender', 'recipient', 'content'
+        
+        if not query:
+            return jsonify({'error': '搜索关键词不能为空'}), 400
+            
+        if not search_in:
+            search_in = ['subject', 'sender', 'recipient', 'content']  # 默认搜索所有字段
+            
+        logger.info(f"用户 {current_user['username']} 执行搜索: {query}, 搜索范围: {search_in}")
+        
+        # 获取用户的所有邮箱
+        user_emails = db.get_emails_by_user_id(current_user['id'])
+        user_email_ids = [email['id'] for email in user_emails]
+        
+        # 根据搜索条件查询邮件
+        results = db.search_mail_records(
+            user_email_ids,
+            query,
+            search_in_subject='subject' in search_in,
+            search_in_sender='sender' in search_in,
+            search_in_recipient='recipient' in search_in,
+            search_in_content='content' in search_in
+        )
+        
+        # 增加邮箱信息到结果中
+        emails_map = {email['id']: email for email in user_emails}
+        for record in results:
+            email_id = record.get('email_id')
+            if email_id in emails_map:
+                record['email_address'] = emails_map[email_id]['email']
+        
+        return jsonify({'results': results})
+    except Exception as e:
+        logger.error(f"搜索邮件失败: {str(e)}")
+        return jsonify({'error': f'服务器错误: {str(e)}'}), 500
 
 def parse_args():
     """解析命令行参数"""

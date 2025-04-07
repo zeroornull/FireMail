@@ -125,12 +125,12 @@ export const useEmailsStore = defineStore('emails', {
     },
     
     // 添加邮箱(API方式)
-    async addEmailAPI(email, password, clientId, refreshToken) {
+    async addEmailAPI({ email, password, clientId, refreshToken, mailType = 'outlook' }) {
       this.loading = true;
       this.error = null;
       
       try {
-        await api.emails.add(email, password, clientId, refreshToken);
+        await api.addEmail(email, password, clientId, refreshToken, mailType);
         await this.fetchEmailsAPI();
         return true;
       } catch (error) {
@@ -143,13 +143,19 @@ export const useEmailsStore = defineStore('emails', {
     },
     
     // 添加邮箱(WebSocket方式)
-    addEmail(email, password, clientId, refreshToken) {
+    addEmail({ email, password, clientId, refreshToken, mailType = 'outlook' }) {
       if (!websocket.isConnected) {
-        return this.addEmailAPI(email, password, clientId, refreshToken);
+        return this.addEmailAPI({ email, password, clientId, refreshToken, mailType });
       }
       
       this.loading = true;
-      websocket.send('add_email', { email, password, client_id: clientId, refresh_token: refreshToken });
+      websocket.send('add_email', { 
+        email, 
+        password, 
+        client_id: clientId, 
+        refresh_token: refreshToken,
+        mail_type: mailType
+      });
       return true;
     },
     
@@ -360,10 +366,19 @@ export const useEmailsStore = defineStore('emails', {
       }
       
       this.loading = true;
-      websocket.send('import_emails', { data });
+      
+      // 格式化数据
+      const payload = typeof data === 'string' 
+        ? { data } 
+        : { data: data.data, mail_type: data.mailType || 'outlook' };
+      
+      websocket.send('import_emails', payload);
+      
+      // 返回Promise以便等待结果
       return new Promise(resolve => {
         const handler = (message) => {
           if (message.type === 'import_result') {
+            this.loading = false;
             websocket.offMessage('import_result', handler);
             resolve(message);
           }
@@ -373,6 +388,7 @@ export const useEmailsStore = defineStore('emails', {
         
         // 超时处理
         setTimeout(() => {
+          this.loading = false;
           websocket.offMessage('import_result', handler);
           resolve(null);
         }, 30000);
@@ -417,6 +433,31 @@ export const useEmailsStore = defineStore('emails', {
       this.processingEmails = {};
       this.currentMailRecords = [];
       this.currentEmailId = null;
-    }
+    },
+    
+    // 获取邮箱密码
+    async getEmailPassword(emailId) {
+      try {
+        this.emails.forEach(email => {
+          if (email.id === emailId) {
+            email.passwordLoading = true;
+          }
+        });
+        
+        // 直接使用原始api对象调用
+        const response = await api.get(`/emails/${emailId}/password`);
+        return response.data;
+      } catch (error) {
+        this.error = '获取邮箱密码失败';
+        console.error(error);
+        throw error;
+      } finally {
+        this.emails.forEach(email => {
+          if (email.id === emailId) {
+            email.passwordLoading = false;
+          }
+        });
+      }
+    },
   }
 }); 

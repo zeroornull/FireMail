@@ -447,9 +447,12 @@ export default {
 
 <style scoped>
 .users-container {
+  min-height: calc(100vh - 160px); /* 减去header和footer的高度 */
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
 }
 
 .users-header {

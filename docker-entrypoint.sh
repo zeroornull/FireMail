@@ -37,11 +37,11 @@ mkdir -p /var/log/caddy
 echo "检查Caddy配置..."
 caddy validate --config /app/Caddyfile || (echo "Caddy配置错误" && exit 1)
 
-# 启动Nginx服务
+# 启动Caddy服务
 echo "启动Caddy服务..."
 caddy run --config /app/Caddyfile &
 
 # 启动Python后端应用
 cd /app
 echo "启动后端服务..."
-exec python3 ./backend/app.py --host "$HOST" --port "$FLASK_PORT" --ws-port "$WS_PORT" 
+exec python3 ./backend/app.py --host "$HOST" --port "$FLASK_PORT" --ws-port "$WS_PORT"

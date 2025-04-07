@@ -429,12 +429,13 @@ class WebSocketService {
     return this.send(MessageTypes.DELETE_EMAILS, { email_ids: emailIds });
   }
 
-  addEmail(email, password, clientId, refreshToken) {
+  addEmail(email, password, clientId, refreshToken, mailType = 'outlook') {
     return this.send(MessageTypes.ADD_EMAIL, {
       email,
       password,
       client_id: clientId,
-      refresh_token: refreshToken
+      refresh_token: refreshToken,
+      mail_type: mailType
     });
   }
 
@@ -443,7 +444,27 @@ class WebSocketService {
   }
 
   importEmails(data) {
-    return this.send(MessageTypes.IMPORT_EMAILS, { data });
+    // 检查数据类型，支持新旧两种格式
+    if (typeof data === 'string') {
+      return this.send(MessageTypes.IMPORT_EMAILS, { data });
+    } else if (typeof data === 'object') {
+      // 确保数据符合预期格式
+      if (!data.data) {
+        console.error('批量导入数据格式错误: 缺少data字段');
+        return false;
+      }
+      
+      // 确保有mailType字段，默认为outlook
+      const payload = {
+        data: data.data,
+        mail_type: data.mailType || 'outlook'
+      };
+      
+      return this.send(MessageTypes.IMPORT_EMAILS, payload);
+    }
+    
+    console.error('批量导入数据格式错误:', data);
+    return false;
   }
 
   // 心跳检测

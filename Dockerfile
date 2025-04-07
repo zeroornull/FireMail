@@ -32,6 +32,10 @@ RUN apk add --no-cache py3-pip caddy bash
 # Copy necessary files from builder stage
 COPY --from=builder /app /app
 
+# 显式复制启动脚本并设置权限
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Set working directory
 WORKDIR /app
 
@@ -42,5 +46,4 @@ RUN pip install --no-cache-dir -r requirements.txt --break-system-packages
 EXPOSE 80
 
 # Startup command
-RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/app/docker-entrypoint.sh"]

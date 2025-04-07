@@ -2,9 +2,11 @@
   <el-config-provider :locale="zhCn">
     <div class="app-container">
       <el-container>
-        <el-header class="app-header">
+        <el-header class="app-header" :class="{ 'scrolled': isScrolled }">
           <div class="header-left">
-            <h1>花火邮箱助手</h1>
+            <router-link to="/" class="logo-link">
+              <h1>花火邮箱助手</h1>
+            </router-link>
           </div>
           
           <div class="header-right">
@@ -36,7 +38,7 @@
             </template>
             
             <div class="connection-status">
-              <el-tag :type="websocketConnected ? 'success' : 'danger'">
+              <el-tag :type="websocketConnected ? 'success' : 'danger'" effect="dark">
                 {{ websocketConnected ? '已连接' : '未连接' }}
               </el-tag>
             </div>
@@ -51,15 +53,29 @@
           :default-active="$route.path"
           class="app-nav"
         >
-          <el-menu-item index="/">首页</el-menu-item>
-          <el-menu-item index="/emails">邮箱管理</el-menu-item>
-          <el-menu-item index="/import">批量导入</el-menu-item>
-          <el-menu-item index="/admin/users" v-if="isAdmin">用户管理</el-menu-item>
-          <el-menu-item index="/about">关于</el-menu-item>
+          <el-menu-item index="/">
+            <el-icon><HomeFilled /></el-icon>首页
+          </el-menu-item>
+          <el-menu-item index="/emails">
+            <el-icon><Message /></el-icon>邮箱管理
+          </el-menu-item>
+          <el-menu-item index="/search">
+            <el-icon><Search /></el-icon>邮件搜索
+          </el-menu-item>
+          <el-menu-item index="/admin/users" v-if="isAdmin">
+            <el-icon><UserFilled /></el-icon>用户管理
+          </el-menu-item>
+          <el-menu-item index="/about">
+            <el-icon><InfoFilled /></el-icon>关于
+          </el-menu-item>
         </el-menu>
         
         <el-main>
-          <router-view v-if="!initializing"/>
+          <router-view v-slot="{ Component }" v-if="!initializing">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
           <div v-else class="loading-container">
             <el-skeleton :rows="6" animated />
           </div>
@@ -80,7 +96,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStore } from 'vuex'
 import { ElConfigProvider, ElMessage } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Search, Message, HomeFilled, InfoFilled, UserFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import websocket from '@/services/websocket'
@@ -89,6 +105,7 @@ import Notifications from './components/Notifications.vue'
 // 初始化状态
 const initializing = ref(true)
 const isConnected = ref(false)
+const isScrolled = ref(false)
 
 // 使用Vuex来管理状态
 const store = useStore()
@@ -99,6 +116,11 @@ const websocketConnected = computed(() => store.state.websocketConnected)
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currentUser = computed(() => store.getters['auth/currentUser'])
 const isAdmin = computed(() => store.getters['auth/isAdmin'])
+
+// 监听滚动事件
+const handleScroll = () => {
+  isScrolled.value = window.scrollY > 10
+}
 
 // 初始化认证状态
 const initializeAuth = async () => {
@@ -195,6 +217,9 @@ onMounted(async () => {
   if (isAuthenticated.value && !websocket.isConnected) {
     websocket.connect()
   }
+  
+  // 添加滚动监听
+  window.addEventListener('scroll', handleScroll)
 })
 
 // 组件卸载时断开WebSocket连接
@@ -202,20 +227,23 @@ onUnmounted(() => {
   websocket.offConnect(handleConnect)
   websocket.offDisconnect(handleDisconnect)
   websocket.disconnect()
+  
+  // 移除滚动监听
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
 <style>
 /* 全局样式 */
 :root {
-  --primary-color: #409eff;
-  --success-color: #67c23a;
-  --warning-color: #e6a23c;
-  --danger-color: #f56c6c;
-  --info-color: #909399;
-  --text-color: #303133;
-  --border-color: #dcdfe6;
-  --background-color: #f5f7fa;
+  --primary-color: #3B82F6;
+  --success-color: #22C55E;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --info-color: #64748B;
+  --text-color: #1E293B;
+  --border-color: #E2E8F0;
+  --background-color: #F8FAFC;
 }
 
 * {
@@ -225,24 +253,49 @@ onUnmounted(() => {
 }
 
 body {
-  font-family: 'PingFang SC', 'Helvetica Neue', Helvetica, 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   color: var(--text-color);
   background-color: var(--background-color);
   line-height: 1.5;
+  min-height: 100vh;
 }
 
 .app-container {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-container {
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-main {
+  flex: 1;
+  padding: 20px;
+  background-color: var(--background-color);
 }
 
 .app-header {
-  background-color: #fff;
+  background-color: white;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
   height: 60px !important;
+  box-shadow: var(--box-shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: all var(--transition-normal);
+}
+
+.app-header.scrolled {
+  box-shadow: var(--box-shadow);
 }
 
 .header-left {
@@ -260,6 +313,25 @@ body {
   font-size: 22px;
   color: var(--primary-color);
   margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  position: relative;
+}
+
+.app-header h1::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 30px;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: var(--border-radius-full);
+  transition: width var(--transition-normal);
+}
+
+.app-header h1:hover::after {
+  width: 100%;
 }
 
 .connection-status {
@@ -274,14 +346,46 @@ body {
   cursor: pointer;
   font-size: 14px;
   color: var(--text-color);
+  padding: 6px 12px;
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.user-dropdown-link:hover {
+  background-color: var(--border-color-lighter);
 }
 
 .user-dropdown-link .el-icon {
   margin-left: 4px;
+  transition: transform var(--transition-fast);
+}
+
+.user-dropdown-link:hover .el-icon {
+  transform: rotate(180deg);
 }
 
 .app-nav {
   border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--box-shadow-sm);
+  background-color: white;
+}
+
+.app-nav .el-menu-item {
+  transition: all var(--transition-normal);
+  border-bottom: 2px solid transparent;
+}
+
+.app-nav .el-menu-item.is-active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.app-nav .el-menu-item:hover {
+  background-color: var(--border-color-lighter);
+}
+
+.app-nav .el-icon {
+  margin-right: 4px;
 }
 
 .app-footer {
@@ -289,21 +393,77 @@ body {
   color: var(--info-color);
   font-size: 14px;
   padding: 20px 0 !important;
-  background-color: #fff;
+  background-color: white;
   border-top: 1px solid var(--border-color);
-}
-
-.el-main {
-  padding: 20px;
-  background-color: var(--background-color);
+  margin-top: auto;
 }
 
 .loading-container {
   padding: 40px 0;
 }
 
+/* 添加页面过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 按钮和标签样式增强 */
+.el-button {
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+}
+
+.el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--box-shadow-sm);
+}
+
+.el-tag {
+  border-radius: var(--border-radius-full);
+  padding: 0 10px;
+  height: 24px;
+  line-height: 22px;
+  font-size: 12px;
+}
+
+/* 表单元素样式 */
+.el-input__inner,
+.el-textarea__inner {
+  border-radius: var(--border-radius);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.el-input__inner:focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
 /* 响应式布局 */
 @media (max-width: 768px) {
+  .header-right {
+    gap: 8px;
+  }
+  
+  .app-header h1 {
+    font-size: 18px;
+  }
+  
+  .connection-status {
+    margin-left: 8px;
+  }
+  
+  .app-nav .el-menu-item {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 576px) {
   .header-right {
     flex-direction: column;
     align-items: flex-end;
@@ -311,6 +471,17 @@ body {
   
   .connection-status {
     margin-top: 10px;
+    margin-left: 0;
+  }
+  
+  .app-nav .el-menu-item {
+    padding: 0 8px;
+    font-size: 14px;
+  }
+  
+  .app-nav .el-icon {
+    margin-right: 2px;
+    font-size: 14px;
   }
 }
 </style>
