@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 # 创建必要的数据目录
