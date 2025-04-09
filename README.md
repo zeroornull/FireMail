@@ -61,7 +61,7 @@ version: '3'
 
 services:
   FireMail:
-    image: luofengyuan/FireMail:latest
+    image: luofengyuan/firemail:latest
     container_name: firemail
     restart: unless-stopped
     ports:
