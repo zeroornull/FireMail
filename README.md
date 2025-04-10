@@ -2,7 +2,7 @@
 
 🌟 一款专为多种邮箱设计的批量收件工具，提供简单高效的邮件管理解决方案。
 
-[![GitHub](https://img.shields.io/github/license/fengyuanluo/FireMail)](https://github.com/fengyuanluo/FireMail)
+[![GitHub](https://img.shields.io/github/license/fengyuanluo/firemail)](https://github.com/fengyuanluo/firemail)
 
 ## 🖼️ 项目截图
 
@@ -153,7 +153,7 @@ FireMail采用前后端分离的架构设计，主要包含以下几个核心部
 
 ## 🔗 相关链接
 
-- 项目地址：[https://github.com/fengyuanluo/FireMail](https://github.com/fengyuanluo/FireMail)
+- 项目地址：[https://github.com/fengyuanluo/firemail](https://github.com/fengyuanluo/firemail)
 - 问题反馈：请在项目的Issues页面提交
 - 文档目录：查看`/docs`文件夹获取更详细的使用指南、API文档和部署说明
 
