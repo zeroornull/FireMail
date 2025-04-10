@@ -429,14 +429,8 @@ class WebSocketService {
     return this.send(MessageTypes.DELETE_EMAILS, { email_ids: emailIds });
   }
 
-  addEmail(email, password, clientId, refreshToken, mailType = 'outlook') {
-    return this.send(MessageTypes.ADD_EMAIL, {
-      email,
-      password,
-      client_id: clientId,
-      refresh_token: refreshToken,
-      mail_type: mailType
-    });
+  addEmail(emailData) {
+    return this.send(MessageTypes.ADD_EMAIL, emailData);
   }
 
   getMailRecords(emailId) {

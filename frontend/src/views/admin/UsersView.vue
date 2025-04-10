@@ -137,14 +137,12 @@
             {{ resetPasswordError }}
           </div>
           
-          <p>您正在重置用户 <strong>{{ selectedUser?.username }}</strong> 的密码。</p>
-          
           <form @submit.prevent="handleResetPassword">
             <div class="form-group">
-              <label for="newPassword">新密码</label>
+              <label for="newPasswordInput">新密码</label>
               <input 
                 type="password" 
-                id="resetPassword" 
+                id="newPasswordInput" 
                 v-model="resetPasswordData.newPassword" 
                 class="form-control" 
                 placeholder="请输入新密码" 
@@ -154,10 +152,10 @@
             </div>
             
             <div class="form-group">
-              <label for="confirmResetPassword">确认新密码</label>
+              <label for="confirmPasswordInput">确认密码</label>
               <input 
                 type="password" 
-                id="confirmResetPassword" 
+                id="confirmPasswordInput" 
                 v-model="resetPasswordData.confirmPassword" 
                 class="form-control" 
                 placeholder="请再次输入新密码" 
@@ -167,9 +165,9 @@
             
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="showResetPasswordModal = false">取消</button>
-              <button type="submit" class="btn btn-warning" :disabled="resetPasswordLoading || !resetPasswordFormValid">
+              <button type="submit" class="btn btn-primary" :disabled="resetPasswordLoading || !resetPasswordFormValid">
                 <span v-if="resetPasswordLoading">重置中...</span>
-                <span v-else>确认重置</span>
+                <span v-else>重置密码</span>
               </button>
             </div>
           </form>
@@ -211,9 +209,6 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
-import api from '@/services/api';
-
 export default {
   name: 'UsersView',
   data() {
@@ -223,6 +218,13 @@ export default {
       message: null,
       messageTimeout: null,
       registrationEnabled: false,
+      
+      // 当前用户
+      currentUser: {
+        id: null,
+        username: '',
+        is_admin: false
+      },
       
       // 添加用户
       showAddUserModal: false,
@@ -251,7 +253,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters('auth', ['currentUser']),
     newUserFormValid() {
       return this.newUser.username.length >= 3 && 
              this.newUser.username.length <= 20 && 
@@ -263,7 +264,6 @@ export default {
     }
   },
   methods: {
-    ...mapActions('auth', ['getAllUsers', 'createUser', 'deleteUser', 'resetUserPassword']),
     formatDate(dateString) {
       if (!dateString) return '未知';
       
@@ -293,8 +293,19 @@ export default {
       this.loading = true;
       
       try {
-        const response = await api.getAllUsers();
-        this.users = response.data;
+        const response = await fetch('/api/users', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`获取用户列表失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        this.users = data;
       } catch (error) {
         this.showMessage('error', '获取用户列表失败: ' + (error.message || '未知错误'));
       } finally {
@@ -304,8 +315,19 @@ export default {
     
     async fetchSystemConfig() {
       try {
-        const response = await api.getConfig();
-        this.registrationEnabled = response.data.allow_register;
+        const response = await fetch('/api/config', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`获取系统配置失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        this.registrationEnabled = data.allow_register;
       } catch (error) {
         console.error('获取系统配置失败', error);
       }
@@ -313,11 +335,23 @@ export default {
     
     async toggleRegistration(value) {
       try {
-        await api.toggleRegistration(value);
-        this.showMessage(`已${value ? '开启' : '关闭'}注册功能`, 'success');
+        const response = await fetch('/api/admin/config/registration', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ allow: value })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`切换注册功能失败: ${response.status}`);
+        }
+        
+        this.showMessage('success', `已${value ? '开启' : '关闭'}注册功能`);
       } catch (error) {
         this.registrationEnabled = !value; // 恢复原状态
-        this.showMessage(`${value ? '开启' : '关闭'}注册功能失败`, 'error');
+        this.showMessage('error', `${value ? '开启' : '关闭'}注册功能失败`);
       }
     },
     
@@ -336,11 +370,23 @@ export default {
       this.addUserError = null;
       
       try {
-        await this.createUser({
-          username: this.newUser.username,
-          password: this.newUser.password,
-          is_admin: this.newUser.is_admin
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            username: this.newUser.username,
+            password: this.newUser.password,
+            is_admin: this.newUser.is_admin
+          })
         });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || '创建用户失败');
+        }
         
         // 刷新用户列表
         await this.fetchUsers();
@@ -355,7 +401,7 @@ export default {
         
         this.showMessage('success', '用户创建成功');
       } catch (error) {
-        this.addUserError = error.response?.data?.message || '创建用户失败';
+        this.addUserError = error.message || '创建用户失败';
       } finally {
         this.addUserLoading = false;
       }
@@ -386,10 +432,21 @@ export default {
       this.resetPasswordError = null;
       
       try {
-        await this.resetUserPassword({
-          userId: this.selectedUser.id,
-          newPassword: this.resetPasswordData.newPassword
+        const response = await fetch(`/api/users/${this.selectedUser.id}/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            new_password: this.resetPasswordData.newPassword
+          })
         });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || '重置密码失败');
+        }
         
         // 关闭模态框
         this.showResetPasswordModal = false;
@@ -397,7 +454,7 @@ export default {
         
         this.showMessage('success', '用户密码重置成功');
       } catch (error) {
-        this.resetPasswordError = error.response?.data?.message || '重置密码失败';
+        this.resetPasswordError = error.message || '重置密码失败';
       } finally {
         this.resetPasswordLoading = false;
       }
@@ -415,7 +472,17 @@ export default {
       this.deleteUserError = null;
       
       try {
-        await this.deleteUser(this.selectedUser.id);
+        const response = await fetch(`/api/users/${this.selectedUser.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || '删除用户失败');
+        }
         
         // 刷新用户列表
         await this.fetchUsers();
@@ -426,13 +493,39 @@ export default {
         
         this.showMessage('success', '用户删除成功');
       } catch (error) {
-        this.deleteUserError = error.response?.data?.message || '删除用户失败';
+        this.deleteUserError = error.message || '删除用户失败';
       } finally {
         this.deleteUserLoading = false;
+      }
+    },
+    
+    // 获取当前用户信息
+    async fetchCurrentUser() {
+      try {
+        const response = await fetch('/api/auth/user', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('获取用户信息失败');
+        }
+        
+        const data = await response.json();
+        this.currentUser = {
+          id: data.id,
+          username: data.username,
+          is_admin: data.is_admin
+        };
+      } catch (error) {
+        console.error('获取当前用户信息失败:', error);
       }
     }
   },
   mounted() {
+    this.fetchCurrentUser();
     this.fetchUsers();
     this.fetchSystemConfig();
   },

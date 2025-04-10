@@ -9,8 +9,10 @@ from functools import wraps
 from flask import Flask, send_from_directory, jsonify, request, Response, make_response
 from flask_cors import CORS
 from database.db import Database
-from utils.email_utils import EmailBatchProcessor
+from utils.email import EmailBatchProcessor
 from ws_server.handler import WebSocketHandler
+import asyncio
+import concurrent.futures
 
 # 配置日志
 logging.basicConfig(
@@ -193,7 +195,7 @@ def logout():
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     """用户注册"""
-    # 检查是否允许注册
+    # 检查系统是否允许注册
     allow_register = db.is_registration_allowed()
     logger.info(f"收到注册请求，当前注册功能状态: {allow_register}")
     
@@ -221,19 +223,23 @@ def register():
         logger.warning("注册失败: 密码长度不符合要求")
         return jsonify({'error': '密码长度必须至少为6个字符'}), 400
     
-    # 创建用户
-    success, is_admin = db.create_user(username, password)
-    if not success:
-        logger.warning(f"注册失败: 用户名 {username} 已存在")
-        return jsonify({'error': '用户名已存在'}), 409
-    
-    logger.info(f"注册成功: 用户名 {username}, 是否管理员: {is_admin}")
-    return jsonify({
-        'message': '注册成功', 
-        'username': username,
-        'is_admin': is_admin,
-        'note': '您是第一个注册的用户，已被自动设置为管理员' if is_admin else ''
-    })
+    try:
+        # 创建用户
+        success, is_admin = db.create_user(username, password)
+        if not success:
+            logger.warning(f"注册失败: 用户名 {username} 已存在")
+            return jsonify({'error': '用户名已存在'}), 409
+        
+        logger.info(f"注册成功: 用户名 {username}, 是否管理员: {is_admin}")
+        return jsonify({
+            'message': '注册成功', 
+            'username': username,
+            'is_admin': is_admin,
+            'note': '您是第一个注册的用户，已被自动设置为管理员' if is_admin else ''
+        })
+    except Exception as e:
+        logger.error(f"注册过程出错: {str(e)}")
+        return jsonify({'error': f'注册失败: {str(e)}'}), 500
 
 @app.route('/api/auth/user', methods=['GET'])
 @token_required
@@ -409,18 +415,55 @@ def add_email(current_user):
     data = request.json
     email = data.get('email')
     password = data.get('password')
-    client_id = data.get('client_id')
-    refresh_token = data.get('refresh_token')
     mail_type = data.get('mail_type', 'outlook')
     
-    if not all([email, password, client_id, refresh_token]):
-        return jsonify({'error': '所有字段都是必需的'}), 400
+    if not email or not password:
+        return jsonify({'error': '邮箱地址和密码是必需的'}), 400
     
-    success = db.add_email(current_user['id'], email, password, client_id, refresh_token, mail_type)
+    # 根据不同邮箱类型验证参数并添加
+    if mail_type == 'outlook':
+        client_id = data.get('client_id')
+        refresh_token = data.get('refresh_token')
+        
+        if not client_id or not refresh_token:
+            return jsonify({'error': 'Outlook邮箱需要提供Client ID和Refresh Token'}), 400
+        
+        success = db.add_email(
+            current_user['id'], 
+            email, 
+            password, 
+            client_id, 
+            refresh_token, 
+            mail_type
+        )
+    elif mail_type in ['imap', 'gmail', 'qq']:
+        # Gmail和QQ邮箱使用IMAP协议，服务器和端口是固定的
+        if mail_type == 'gmail':
+            server = 'imap.gmail.com'
+            port = 993
+        elif mail_type == 'qq':
+            server = 'imap.qq.com'
+            port = 993
+        else:
+            server = data.get('server', 'imap.gmail.com')
+            port = data.get('port', 993)
+        
+        success = db.add_email(
+            current_user['id'], 
+            email, 
+            password, 
+            mail_type=mail_type,
+            server=server,
+            port=port,
+            use_ssl=True
+        )
+    else:
+        return jsonify({'error': f'不支持的邮箱类型: {mail_type}'}), 400
+    
     if success:
         return jsonify({'message': f'邮箱 {email} 添加成功'})
     else:
-        return jsonify({'error': f'邮箱 {email} 已存在'}), 409
+        return jsonify({'error': f'邮箱 {email} 已存在或添加失败'}), 409
 
 @app.route('/api/emails/<int:email_id>', methods=['DELETE'])
 @token_required
@@ -461,30 +504,65 @@ def batch_delete_emails(current_user):
 @app.route('/api/emails/<int:email_id>/check', methods=['POST'])
 @token_required
 def check_email(current_user, email_id):
-    """检查单个邮箱的邮件"""
-    # 获取邮箱信息
-    email_info = db.get_email_by_id(email_id, None if current_user['is_admin'] else current_user['id'])
-    if not email_info:
-        logger.warning(f"尝试检查不存在的邮箱ID: {email_id} (用户ID: {current_user['id']})")
-        return jsonify({'error': f'邮箱 ID {email_id} 不存在或您没有权限'}), 404
-    
-    if email_processor.is_email_being_processed(email_id):
-        logger.info(f"邮箱 ID {email_id} 正在处理中，拒绝重复请求")
-        # 返回当前进度信息而不是错误
+    """检查指定邮箱的新邮件"""
+    try:
+        # 获取邮箱信息
+        email_info = db.get_email_by_id(email_id)
+        if not email_info:
+            return jsonify({'error': '邮箱不存在'}), 404
+        
+        # 检查邮箱是否属于当前用户
+        if email_info['user_id'] != current_user['id']:
+            return jsonify({'error': '无权操作此邮箱'}), 403
+        
+        # 检查邮箱是否正在处理中
+        if email_processor.is_email_being_processed(email_id):
+            logger.info(f"邮箱 ID {email_id} 正在处理中，拒绝重复请求")
+            return jsonify({
+                'success': False,
+                'message': '邮箱正在处理中，请稍后再试',
+                'status': 'processing'
+            }), 409
+        
+        # 创建进度回调
+        def progress_callback(progress, message):
+            logger.info(f"邮箱 ID {email_id} 处理进度: {progress}%, 消息: {message}")
+            # 通过WebSocket发送进度更新
+            try:
+                # 使用日志记录进度，不尝试调用异步方法
+                logger.info(f"向用户 {current_user['id']} 发送邮箱检查进度: {progress}%, {message}")
+                # 这里应使用同步方式发送消息，但WSHandler.broadcast_to_user是异步方法
+            except Exception as e:
+                logger.error(f"发送进度更新失败: {str(e)}")
+        
+        # 提交任务到线程池
+        future = email_processor.manual_thread_pool.submit(
+            email_processor._check_email_task,
+            email_info,
+            progress_callback
+        )
+        
+        # 等待任务完成
+        result = future.result(timeout=300)  # 设置超时时间为5分钟
+        
+        # 记录任务完成
+        logger.info(f"任务完成: {result}")
+        
+        return jsonify(result)
+        
+    except concurrent.futures.TimeoutError:
+        logger.error(f"检查邮箱超时: {email_id}")
         return jsonify({
-            'message': f'邮箱 ID {email_id} 正在处理中',
-            'status': 'processing'
-        }), 409
-    
-    # 启动邮件检查线程
-    logger.info(f"开始检查邮箱 ID {email_id}: {email_info['email']} (用户ID: {current_user['id']})")
-    
-    # 自定义进度回调
-    def progress_callback(email_id, progress, message):
-        logger.info(f"邮箱 ID {email_id} 处理进度: {progress}%, 消息: {message}")
-    
-    email_processor.check_emails([email_id], progress_callback)
-    return jsonify({'message': f'开始检查邮箱 ID {email_id}', 'email': email_info['email']})
+            'success': False,
+            'message': '检查邮箱超时，请稍后再试'
+        }), 408
+        
+    except Exception as e:
+        logger.error(f"检查邮箱失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'检查邮箱失败: {str(e)}'
+        }), 500
 
 @app.route('/api/emails/batch_check', methods=['POST'])
 @token_required
@@ -727,6 +805,186 @@ def search_emails(current_user):
         logger.error(f"搜索邮件失败: {str(e)}")
         return jsonify({'error': f'服务器错误: {str(e)}'}), 500
 
+@app.route('/api/emails/<int:email_id>', methods=['PUT'])
+@token_required
+def update_email(current_user, email_id):
+    """更新邮箱信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
+        # 获取当前邮箱信息，用于保留不允许修改的字段
+        current_email = db.get_email_by_id(email_id, current_user['id'])
+        if not current_email:
+            return jsonify({'error': '邮箱不存在或您没有权限修改'}), 404
+            
+        # 验证邮箱信息
+        required_fields = ['email', 'password']
+        for field in required_fields:
+            if field not in data and field != 'password':  # 密码可以不修改
+                return jsonify({'error': f'缺少必要字段: {field}'}), 400
+                
+        # 准备更新数据，保持邮箱类型不变
+        update_data = {
+            'email': data.get('email'),
+            'mail_type': current_email['mail_type']  # 使用已有数据，不允许修改
+        }
+        
+        # 仅当提供了非空密码时才更新密码
+        if data.get('password') and data.get('password') != '******':
+            update_data['password'] = data.get('password')
+            
+        # 根据不同邮箱类型更新特定字段
+        if current_email['mail_type'] == 'outlook':
+            if data.get('client_id'):
+                update_data['client_id'] = data.get('client_id')
+            if data.get('refresh_token'):
+                update_data['refresh_token'] = data.get('refresh_token')
+        elif current_email['mail_type'] in ['imap', 'gmail', 'qq']:
+            if data.get('server'):
+                update_data['server'] = data.get('server')
+            if data.get('port') is not None:
+                update_data['port'] = data.get('port')
+            if data.get('use_ssl') is not None:
+                update_data['use_ssl'] = data.get('use_ssl')
+        
+        # 更新邮箱信息
+        success = db.update_email(
+            email_id,
+            user_id=current_user['id'],
+            **update_data
+        )
+        
+        if not success:
+            return jsonify({'error': '更新邮箱信息失败'}), 500
+            
+        logger.info(f"用户 {current_user['username']} 更新了邮箱 ID: {email_id}")
+        
+        return jsonify({
+            'message': '邮箱信息更新成功',
+            'data': {
+                'email_id': email_id,
+                'email': update_data['email'],
+                'mail_type': update_data['mail_type']
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"更新邮箱信息失败: {str(e)}")
+        return jsonify({'error': '更新邮箱信息失败'}), 500
+
+@app.route('/api/email/start_real_time_check', methods=['POST'])
+@token_required
+def start_real_time_check():
+    """启动实时邮件检查"""
+    try:
+        check_interval = request.json.get('check_interval', 60)
+        if check_interval < 30:  # 最小检查间隔为30秒
+            check_interval = 30
+        
+        success = email_processor.start_real_time_check(check_interval)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'实时邮件检查已启动，检查间隔: {check_interval}秒'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '实时邮件检查已在运行中'
+            })
+    except Exception as e:
+        logger.error(f"启动实时邮件检查失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'启动实时邮件检查失败: {str(e)}'
+        })
+
+@app.route('/api/email/stop_real_time_check', methods=['POST'])
+@token_required
+def stop_real_time_check():
+    """停止实时邮件检查"""
+    try:
+        success = email_processor.stop_real_time_check()
+        if success:
+            return jsonify({
+                'success': True,
+                'message': '实时邮件检查已停止'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '实时邮件检查未在运行'
+            })
+    except Exception as e:
+        logger.error(f"停止实时邮件检查失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'停止实时邮件检查失败: {str(e)}'
+        })
+
+@app.route('/api/email/add_to_real_time_queue', methods=['POST'])
+@token_required
+def add_to_real_time_queue():
+    """将邮箱添加到实时检查队列"""
+    try:
+        email_id = request.json.get('email_id')
+        if not email_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少邮箱ID'
+            })
+        
+        email_processor.add_to_real_time_queue(email_id)
+        return jsonify({
+            'success': True,
+            'message': f'邮箱ID: {email_id} 已添加到实时检查队列'
+        })
+    except Exception as e:
+        logger.error(f"添加邮箱到实时检查队列失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'添加邮箱到实时检查队列失败: {str(e)}'
+        })
+
+@app.route('/api/emails/<int:email_id>/realtime', methods=['POST'])
+@token_required
+def toggle_email_realtime_check(current_user, email_id):
+    """开启/关闭指定邮箱的实时检查"""
+    try:
+        data = request.json
+        enable = data.get('enable', False)
+        
+        # 获取当前邮箱信息
+        email_info = db.get_email_by_id(email_id, current_user['id'])
+        if not email_info:
+            return jsonify({'error': '邮箱不存在或您没有权限'}), 404
+        
+        # 更新实时检查状态
+        success = db.set_email_realtime_check(email_id, enable)
+        if not success:
+            return jsonify({'error': '更新实时检查状态失败'}), 500
+        
+        action = "开启" if enable else "关闭"
+        logger.info(f"用户 {current_user['username']} {action}了邮箱 {email_info['email']} 的实时检查")
+        
+        return jsonify({
+            'success': True,
+            'message': f'已{action}邮箱的实时检查',
+            'data': {
+                'email_id': email_id,
+                'email': email_info['email'],
+                'enable_realtime_check': enable
+            }
+        })
+    except Exception as e:
+        logger.error(f"切换邮箱实时检查状态失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'切换邮箱实时检查状态失败: {str(e)}'
+        }), 500
+
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='花火邮箱助手')
@@ -756,6 +1014,10 @@ if __name__ == '__main__':
         ws_thread = threading.Thread(target=start_websocket_server)
         ws_thread.daemon = True
         ws_thread.start()
+        
+        # 启动实时邮件检查
+        email_processor.start_real_time_check(check_interval=60)
+        logger.info("实时邮件检查已启动")
         
         # 启动Flask应用
         logger.info(f"花火邮箱助手启动于 http://{args.host}:{args.port}")

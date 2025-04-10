@@ -56,48 +56,10 @@ class WebSocketHandler:
         await websocket.send(json.dumps(message))
     
     async def handle_message(self, websocket, message_str):
-        """处理接收到的消息"""
+        """处理客户端消息"""
         try:
             message = json.loads(message_str)
             action = message.get('action')
-            
-            # 处理认证消息
-            if action == 'authenticate':
-                token = message.get('token')
-                if token:
-                    # 验证token并获取用户信息
-                    user_info = self.validate_token(token)
-                    if user_info:
-                        await self.authenticate_client(websocket, user_info)
-                        await self.send_to_client(websocket, {
-                            'type': 'auth_result',
-                            'success': True,
-                            'user': user_info
-                        })
-                        return
-                
-                # 认证失败
-                await self.send_to_client(websocket, {
-                    'type': 'auth_result',
-                    'success': False,
-                    'message': 'Invalid token'
-                })
-                return
-            
-            # 检查客户端是否已认证
-            if websocket not in self.connected_clients:
-                await self.send_to_client(websocket, {
-                    'type': 'error',
-                    'message': 'Unauthorized, please authenticate first'
-                })
-                return
-                
-            if not action:
-                await self.send_to_client(websocket, {
-                    'type': 'error',
-                    'message': 'No action specified'
-                })
-                return
             
             if action == 'get_all_emails':
                 await self.handle_get_all_emails(websocket)
@@ -109,14 +71,51 @@ class WebSocketHandler:
                 refresh_token = message.get('refresh_token')
                 mail_type = message.get('mail_type', 'outlook')
                 
-                if not all([email, password, client_id, refresh_token]):
+                if mail_type == 'outlook':
+                    try:
+                        await self.handle_add_email(websocket, email, password, client_id, refresh_token, mail_type)
+                    except Exception as e:
+                        logger.error(f"添加Outlook邮箱时出错: {str(e)}")
+                        await self.send_to_client(websocket, {
+                            'type': 'error',
+                            'message': f'添加Outlook邮箱时出错: {str(e)}'
+                        })
+                elif mail_type == 'imap':
+                    server = message.get('server')
+                    port = message.get('port', 993)
+                    use_ssl = message.get('use_ssl', True)
+                    try:
+                        await self.handle_add_imap_email(websocket, email, password, server, port, use_ssl)
+                    except Exception as e:
+                        logger.error(f"添加IMAP邮箱时出错: {str(e)}")
+                        await self.send_to_client(websocket, {
+                            'type': 'error',
+                            'message': f'添加IMAP邮箱时出错: {str(e)}'
+                        })
+                elif mail_type == 'gmail':
+                    try:
+                        await self.handle_add_gmail_email(websocket, email, password)
+                    except Exception as e:
+                        logger.error(f"添加Gmail邮箱时出错: {str(e)}")
+                        await self.send_to_client(websocket, {
+                            'type': 'error',
+                            'message': f'添加Gmail邮箱时出错: {str(e)}'
+                        })
+                elif mail_type == 'qq':
+                    try:
+                        await self.handle_add_qq_email(websocket, email, password)
+                    except Exception as e:
+                        logger.error(f"添加QQ邮箱时出错: {str(e)}")
+                        await self.send_to_client(websocket, {
+                            'type': 'error',
+                            'message': f'添加QQ邮箱时出错: {str(e)}'
+                        })
+                else:
                     await self.send_to_client(websocket, {
                         'type': 'error',
-                        'message': 'Missing email information'
+                        'message': f'不支持的邮箱类型: {mail_type}'
                     })
                     return
-                
-                await self.handle_add_email(websocket, email, password, client_id, refresh_token, mail_type)
             
             elif action == 'delete_emails':
                 email_ids = message.get('email_ids', [])
@@ -131,25 +130,25 @@ class WebSocketHandler:
                 await self.handle_get_mail_records(websocket, email_id)
             
             elif action == 'import_emails':
-                data = message.get('data', '')
-                await self.handle_import_emails(websocket, data)
+                data = message.get('data', [])
+                mail_type = message.get('mail_type', 'outlook')
+                await self.handle_import_emails(websocket, data, mail_type)
             
             else:
                 await self.send_to_client(websocket, {
                     'type': 'error',
-                    'message': f'Unknown action: {action}'
+                    'message': f'未知的操作: {action}'
                 })
-        
         except json.JSONDecodeError:
             await self.send_to_client(websocket, {
                 'type': 'error',
-                'message': 'Invalid JSON format'
+                'message': '无效的JSON格式'
             })
         except Exception as e:
-            logger.error(f"Error handling message: {str(e)}")
+            logger.error(f"处理消息时出错: {str(e)}")
             await self.send_to_client(websocket, {
                 'type': 'error',
-                'message': f'Server error: {str(e)}'
+                'message': f'处理消息时出错: {str(e)}'
             })
     
     async def handle_get_all_emails(self, websocket):
@@ -353,6 +352,231 @@ class WebSocketHandler:
             
             # 记录日志
             logger.info(f"User {user_id} imported {success_count} emails. Failed: {len(failed_lines)}")
+    
+    async def handle_add_imap_email(self, websocket, email, password, server, port, use_ssl=True):
+        """处理添加IMAP邮箱的请求"""
+        # 验证参数
+        if not email or not password:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '邮箱地址和密码不能为空'
+            })
+            return
+        
+        # 获取用户信息
+        user_info = self.connected_clients.get(websocket)
+        if not user_info:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '未授权，请先进行认证'
+            })
+            return
+        
+        user_id = user_info.get('id')
+        if not user_id:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '用户信息无效'
+            })
+            return
+        
+        # 检查邮箱是否已存在
+        existing_emails = self.db.get_emails_by_user_id(user_id)
+        for existing in existing_emails:
+            if existing['email'] == email:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'邮箱 {email} 已存在'
+                })
+                return
+        
+        try:
+            # 添加邮箱到数据库
+            email_id = self.db.add_email(
+                user_id=user_id,
+                email=email,
+                password=password,
+                mail_type='imap',
+                server=server,
+                port=port,
+                use_ssl=use_ssl
+            )
+            
+            if email_id:
+                # 通知客户端添加成功
+                await self.send_to_client(websocket, {
+                    'type': 'email_added',
+                    'message': f'邮箱 {email} 添加成功'
+                })
+                
+                # 发送更新后的邮箱列表
+                emails = self.db.get_all_emails(user_id)
+                emails_list = [dict(email) for email in emails]
+                await self.send_to_client(websocket, {
+                    'type': 'emails_list',
+                    'data': emails_list
+                })
+            else:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'添加邮箱 {email} 失败'
+                })
+        except Exception as e:
+            logging.error(f"添加邮箱出错: {str(e)}")
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': f'添加邮箱时出错: {str(e)}'
+            })
+    
+    async def handle_add_gmail_email(self, websocket, email, password):
+        """处理添加Gmail邮箱的请求"""
+        # 验证参数
+        if not email or not password:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '邮箱地址和密码不能为空'
+            })
+            return
+        
+        # 获取用户信息
+        user_info = self.connected_clients.get(websocket)
+        if not user_info:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '未授权，请先进行认证'
+            })
+            return
+        
+        user_id = user_info.get('id')
+        if not user_id:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '用户信息无效'
+            })
+            return
+        
+        # 检查邮箱是否已存在
+        existing_emails = self.db.get_emails_by_user_id(user_id)
+        for existing in existing_emails:
+            if existing['email'] == email:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'邮箱 {email} 已存在'
+                })
+                return
+        
+        try:
+            # 添加邮箱到数据库
+            email_id = self.db.add_email(
+                user_id=user_id,
+                email=email,
+                password=password,
+                mail_type='gmail',
+                server='imap.gmail.com',
+                port=993,
+                use_ssl=True
+            )
+            
+            if email_id:
+                # 通知客户端添加成功
+                await self.send_to_client(websocket, {
+                    'type': 'email_added',
+                    'message': f'邮箱 {email} 添加成功'
+                })
+                
+                # 发送更新后的邮箱列表
+                emails = self.db.get_all_emails(user_id)
+                emails_list = [dict(email) for email in emails]
+                await self.send_to_client(websocket, {
+                    'type': 'emails_list',
+                    'data': emails_list
+                })
+            else:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'邮箱 {email} 添加失败，可能已存在'
+                })
+        except Exception as e:
+            logger.error(f"添加Gmail邮箱时出错: {str(e)}")
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': f'添加Gmail邮箱时出错: {str(e)}'
+            })
+
+    async def handle_add_qq_email(self, websocket, email, password):
+        """处理添加QQ邮箱的请求"""
+        # 验证参数
+        if not email or not password:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '邮箱地址和密码不能为空'
+            })
+            return
+        
+        # 获取用户信息
+        user_info = self.connected_clients.get(websocket)
+        if not user_info:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '未授权，请先进行认证'
+            })
+            return
+        
+        user_id = user_info.get('id')
+        if not user_id:
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': '用户信息无效'
+            })
+            return
+        
+        # 检查邮箱是否已存在
+        existing_emails = self.db.get_emails_by_user_id(user_id)
+        for existing in existing_emails:
+            if existing['email'] == email:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'邮箱 {email} 已存在'
+                })
+                return
+        
+        try:
+            # 添加邮箱到数据库
+            email_id = self.db.add_email(
+                user_id=user_id,
+                email=email,
+                password=password,
+                mail_type='qq',
+                server='imap.qq.com',
+                port=993,
+                use_ssl=True
+            )
+            
+            if email_id:
+                # 通知客户端添加成功
+                await self.send_to_client(websocket, {
+                    'type': 'email_added',
+                    'message': f'邮箱 {email} 添加成功'
+                })
+                
+                # 发送更新后的邮箱列表
+                emails = self.db.get_all_emails(user_id)
+                emails_list = [dict(email) for email in emails]
+                await self.send_to_client(websocket, {
+                    'type': 'emails_list',
+                    'data': emails_list
+                })
+            else:
+                await self.send_to_client(websocket, {
+                    'type': 'error',
+                    'message': f'邮箱 {email} 添加失败，可能已存在'
+                })
+        except Exception as e:
+            logger.error(f"添加QQ邮箱时出错: {str(e)}")
+            await self.send_to_client(websocket, {
+                'type': 'error',
+                'message': f'添加QQ邮箱时出错: {str(e)}'
+            })
     
     async def handle_client(self, websocket, path):
         """处理客户端连接"""

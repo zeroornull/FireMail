@@ -116,6 +116,13 @@ const router = createRouter({
       beforeEnter: requireAdmin
     },
     {
+      path: '/admin/users-simple',
+      name: 'admin-users-simple',
+      component: () => import('@/views/admin/SimplifiedUsersView.vue'),
+      meta: { requiresAdmin: true },
+      beforeEnter: requireAdmin
+    },
+    {
       path: '/forbidden',
       name: 'forbidden',
       component: () => import('@/views/ForbiddenView.vue')

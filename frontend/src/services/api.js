@@ -264,20 +264,24 @@ const apiMethods = {
   
   // 邮箱相关接口
   emails: {
-    getAll: () => api.get('/emails'),
-    getPassword: (emailId) => api.get(`/emails/${emailId}/password`),
-    getMailRecords: (emailId) => api.get(`/emails/${emailId}/mail_records`),
-    add: (email, password, clientId, refreshToken, mailType) => api.post('/emails', { 
-      email, 
-      password, 
-      client_id: clientId, 
-      refresh_token: refreshToken,
-      mail_type: mailType
-    }),
-    check: (emailId) => api.post(`/emails/${emailId}/check`),
-    delete: (emailId) => api.delete(`/emails/${emailId}`),
-    batchCheck: (emailIds) => api.post('/emails/batch_check', { email_ids: emailIds }),
-    batchDelete: (emailIds) => api.post('/emails/batch_delete', { email_ids: emailIds }),
+    getAll: () => api.get('/emails').then(res => res.data),
+    getPassword: (emailId) => api.get(`/emails/${emailId}/password`).then(res => res.data),
+    getRecords: (emailId) => api.get(`/emails/${emailId}/mail_records`).then(res => res.data),
+    add: (emailData) => api.post('/emails', emailData),
+    check: (emailIds) => {
+      if (Array.isArray(emailIds) && emailIds.length === 1) {
+        return api.post(`/emails/${emailIds[0]}/check`);
+      } else {
+        return api.post('/emails/batch_check', { email_ids: emailIds });
+      }
+    },
+    delete: (emailIds) => {
+      if (Array.isArray(emailIds) && emailIds.length === 1) {
+        return api.delete(`/emails/${emailIds[0]}`);
+      } else {
+        return api.post('/emails/batch_delete', { email_ids: emailIds });
+      }
+    },
     import: (data) => api.post('/emails/import', data)
   },
   

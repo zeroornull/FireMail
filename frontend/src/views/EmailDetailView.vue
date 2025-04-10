@@ -17,22 +17,6 @@
       </div>
     </div>
     
-    <div v-if="email && getProcessingStatus(email.id)" class="status-section">
-      <el-alert
-        :title="getProcessingStatus(email.id).message"
-        :type="getAlertType(getProcessingStatus(email.id).progress)"
-        :closable="false"
-        show-icon
-      />
-      <el-progress
-        :percentage="getProcessingStatus(email.id).progress"
-        :status="getProgressStatus(getProcessingStatus(email.id).progress)"
-        :striped="true"
-        :striped-flow="getProcessingStatus(email.id).progress < 100"
-        class="progress-bar"
-      />
-    </div>
-    
     <div class="email-info" v-if="email">
       <el-descriptions title="邮箱信息" :column="1" border>
         <el-descriptions-item label="邮箱地址">{{ email.email }}</el-descriptions-item>
@@ -133,20 +117,6 @@ const filteredMailRecords = computed(() => {
 // 获取处理状态
 const getProcessingStatus = (id) => {
   return emailsStore.getProcessingStatus(id)
-}
-
-// 获取进度条状态
-const getProgressStatus = (progress) => {
-  if (progress < 0) return 'exception'
-  if (progress === 100) return 'success'
-  return ''
-}
-
-// 获取警告类型
-const getAlertType = (progress) => {
-  if (progress < 0) return 'error'
-  if (progress === 100) return 'success'
-  return 'info'
 }
 
 // 格式化日期

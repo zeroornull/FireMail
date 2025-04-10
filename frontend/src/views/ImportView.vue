@@ -109,7 +109,7 @@ const importResult = ref(null)
 
 // 表单数据
 const formData = reactive({
-  mailType: 'outlook', // 默认为outlook类型
+  mailType: '', // 默认为空，让用户选择
   importData: ''
 })
 

@@ -260,8 +260,21 @@ class WebSocketHandler:
                 }))
                 return
             
-            # 定义进度回调函数
+            # 定义详细的进度回调函数
             def progress_callback(email_id, progress, message):
+                # 获取邮箱信息用于更详细的日志
+                email_info = self.db.get_email_by_id(email_id)
+                email_address = email_info['email'] if email_info else f"ID:{email_id}"
+                
+                # 记录进度日志
+                if progress == 0:
+                    logger.info(f"开始检查邮箱 {email_address}")
+                elif progress == 100:
+                    logger.info(f"完成检查邮箱 {email_address}")
+                else:
+                    logger.info(f"邮箱 {email_address} 检查进度: {progress}% - {message}")
+                
+                # 发送进度更新到WebSocket
                 asyncio.run(self.send_progress_update(user_id, email_id, progress, message))
             
             # 启动检查邮箱任务
@@ -337,8 +350,12 @@ class WebSocketHandler:
             # 获取请求数据
             email = data.get('email')
             password = data.get('password')
+            mail_type = data.get('mail_type', 'imap')  # 默认使用imap类型
             client_id = data.get('client_id')
             refresh_token = data.get('refresh_token')
+            server = data.get('server')
+            port = data.get('port')
+            use_ssl = data.get('use_ssl', True)
             
             if not email or not password:
                 await websocket.send(json.dumps({
@@ -347,8 +364,25 @@ class WebSocketHandler:
                 }))
                 return
             
-            # 添加邮箱 - 确保参数顺序正确：user_id, email, password, client_id, refresh_token
-            email_id = self.db.add_email(user_id, email, password, client_id, refresh_token)
+            # 根据不同邮箱类型处理
+            if mail_type == 'outlook':
+                if not client_id or not refresh_token:
+                    await websocket.send(json.dumps({
+                        'type': 'error',
+                        'message': 'Outlook邮箱需要提供Client ID和Refresh Token'
+                    }))
+                    return
+                email_id = self.db.add_email(user_id, email, password, client_id, refresh_token, mail_type)
+            else:  # imap类型
+                email_id = self.db.add_email(
+                    user_id, 
+                    email, 
+                    password, 
+                    mail_type=mail_type,
+                    server=server,
+                    port=port,
+                    use_ssl=use_ssl
+                )
             
             if email_id:
                 # 发送成功消息
@@ -357,7 +391,7 @@ class WebSocketHandler:
                     'message': f'邮箱 {email} 添加成功'
                 }))
                 
-                logger.info(f"用户ID {user_id} 添加了邮箱: {email}")
+                logger.info(f"用户ID {user_id} 添加了邮箱: {email}, 类型: {mail_type}")
             else:
                 # 发送错误消息
                 await websocket.send(json.dumps({
@@ -422,23 +456,62 @@ class WebSocketHandler:
     async def send_progress_update(self, user_id, email_id, progress, message):
         """发送进度更新给用户"""
         if user_id not in self.user_sockets:
+            logger.warning(f"找不到用户ID: {user_id}的WebSocket连接，无法发送进度更新")
             return
         
+        # 确保进度在0-100范围内
+        progress = max(0, min(100, progress))
+        
+        # 构建进度消息
         progress_message = json.dumps({
             'type': 'check_progress',
             'email_id': email_id,
             'progress': progress,
-            'message': message
+            'message': message,
+            'timestamp': datetime.now().isoformat()
         })
         
         # 发送给该用户的所有WebSocket连接
         websockets_copy = self.user_sockets[user_id].copy()
+        success_count = 0
+        
         for websocket in websockets_copy:
             try:
                 await websocket.send(progress_message)
+                success_count += 1
             except Exception as e:
-                logger.error(f"发送进度更新失败: {str(e)}")
+                logger.error(f"向用户 {user_id} 发送进度更新失败: {str(e)}")
                 # 这里不需要删除连接，因为错误会导致连接关闭，unregister_client会处理
+        
+        if success_count > 0:
+            logger.debug(f"成功向用户 {user_id} 的 {success_count} 个连接发送进度更新: {email_id} - {progress}% - {message}")
+    
+    # 添加广播到特定用户的所有连接的方法
+    async def broadcast_to_user(self, user_id, message):
+        """向特定用户的所有连接广播消息"""
+        if user_id not in self.user_sockets:
+            logger.warning(f"找不到用户ID: {user_id}的WebSocket连接，无法发送消息")
+            return
+        
+        # 将消息转换为JSON字符串
+        message_str = json.dumps(message)
+        
+        # 发送给该用户的所有WebSocket连接
+        websockets_copy = self.user_sockets[user_id].copy()
+        success_count = 0
+        
+        for websocket in websockets_copy:
+            try:
+                await websocket.send(message_str)
+                success_count += 1
+            except Exception as e:
+                logger.error(f"向用户 {user_id} 广播消息失败: {str(e)}")
+                # 错误会由unregister_client处理
+        
+        if success_count > 0:
+            logger.debug(f"成功向用户 {user_id} 的 {success_count} 个连接广播消息: {message['type']}")
+        
+        return success_count > 0
     
     async def broadcast_emails_deleted(self, email_ids):
         """向所有连接的客户端广播邮箱已删除的消息"""

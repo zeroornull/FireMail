@@ -10,7 +10,8 @@ export const useEmailsStore = defineStore('emails', {
     selectedEmails: [],
     processingEmails: {},
     currentMailRecords: [],
-    currentEmailId: null
+    currentEmailId: null,
+    isConnected: false
   }),
   
   getters: {
@@ -23,28 +24,43 @@ export const useEmailsStore = defineStore('emails', {
     },
     
     hasSelectedEmails: (state) => {
-      return state.selectedEmails.length > 0;
+      return Array.isArray(state.selectedEmails) && state.selectedEmails.length > 0;
     },
     
     selectedEmailsCount: (state) => {
-      return state.selectedEmails.length;
+      return Array.isArray(state.selectedEmails) ? state.selectedEmails.length : 0;
     },
     
     isAllSelected: (state) => {
-      return state.emails.length > 0 && state.selectedEmails.length === state.emails.length;
+      return state.emails.length > 0 && Array.isArray(state.selectedEmails) && 
+        state.selectedEmails.length === state.emails.length;
     }
   },
   
   actions: {
     // 初始化WebSocket事件监听
     initWebSocketListeners() {
+      // 连接状态
+      websocket.onConnect(() => {
+        this.isConnected = true;
+        this.fetchEmails();
+      });
+      
+      websocket.onDisconnect(() => {
+        this.isConnected = false;
+      });
+      
       // 邮箱列表更新
       websocket.onMessage('emails_list', (data) => {
-        this.emails = data.data || [];
+        console.log('接收到邮箱列表：', data);
+        if (data && Array.isArray(data.data)) {
+          this.emails = data.data || [];
+        }
       });
       
       // 新增邮箱
-      websocket.onMessage('email_added', () => {
+      websocket.onMessage('email_added', (data) => {
+        console.log('邮箱添加成功：', data);
         this.fetchEmails();
       });
       
@@ -83,29 +99,89 @@ export const useEmailsStore = defineStore('emails', {
       // 邮件记录
       websocket.onMessage('mail_records', (data) => {
         if (data.email_id === this.currentEmailId) {
-          this.currentMailRecords = data.data || [];
+          // 添加数据验证和清理
+          if (Array.isArray(data.data)) {
+            // 确保每条记录都有必要的字段
+            this.currentMailRecords = data.data.map(record => ({
+              id: record.id || Date.now() + Math.random().toString(36).substring(2, 10),
+              subject: record.subject || '(无主题)',
+              sender: record.sender || '(未知发件人)',
+              received_time: record.received_time || new Date().toISOString(),
+              content: record.content || '(无内容)',
+              folder: record.folder || 'INBOX'
+            }));
+          } else {
+            this.currentMailRecords = [];
+            console.error('收到的邮件记录数据不是数组格式:', data);
+          }
         }
       });
       
       // 错误处理
       websocket.onMessage('error', (data) => {
         this.error = data.message;
-      });
-      
-      // 连接成功时获取邮箱列表
-      websocket.onConnect(() => {
-        this.fetchEmails();
+        console.error('WebSocket 错误：', data.message);
       });
     },
     
-    // 通过API获取所有邮箱
-    async fetchEmailsAPI() {
+    // 添加邮箱
+    async addEmail(emailData) {
       this.loading = true;
       this.error = null;
       
       try {
-        const response = await api.emails.getAll();
-        this.emails = response;
+        console.log('添加邮箱：', {...emailData, password: '******'});
+        if (!websocket.isConnected) {
+          await api.emails.add(emailData);
+        } else {
+          // 确保mail_type参数正确传递
+          const wsData = {
+            ...emailData,
+            mail_type: emailData.mail_type || 'imap' // 默认使用imap类型
+          };
+          websocket.send('add_email', wsData);
+        }
+      } catch (error) {
+        this.error = '添加邮箱失败';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // 导入邮箱
+    async importEmails(importData) {
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        console.log('导入邮箱：', importData);
+        if (!websocket.isConnected) {
+          await api.emails.import(importData);
+        } else {
+          websocket.send('import_emails', importData);
+        }
+      } catch (error) {
+        this.error = '导入邮箱失败';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // 获取所有邮箱
+    async fetchEmails() {
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        console.log('获取邮箱列表，WebSocket状态：', websocket.isConnected);
+        if (!websocket.isConnected) {
+          const response = await api.emails.getAll();
+          this.emails = response;
+        } else {
+          websocket.send('get_all_emails');
+        }
       } catch (error) {
         this.error = '获取邮箱列表失败';
         console.error(error);
@@ -114,214 +190,140 @@ export const useEmailsStore = defineStore('emails', {
       }
     },
     
-    // 通过WebSocket获取所有邮箱
-    fetchEmails() {
-      if (!websocket.isConnected) {
-        return this.fetchEmailsAPI();
-      }
-      
-      this.loading = true;
-      websocket.send('get_all_emails');
-    },
-    
-    // 添加邮箱(API方式)
-    async addEmailAPI({ email, password, clientId, refreshToken, mailType = 'outlook' }) {
+    // 删除单个邮箱
+    async deleteEmail(emailId) {
       this.loading = true;
       this.error = null;
       
       try {
-        await api.addEmail(email, password, clientId, refreshToken, mailType);
-        await this.fetchEmailsAPI();
-        return true;
-      } catch (error) {
-        this.error = '添加邮箱失败';
-        console.error(error);
-        return false;
-      } finally {
-        this.loading = false;
-      }
-    },
-    
-    // 添加邮箱(WebSocket方式)
-    addEmail({ email, password, clientId, refreshToken, mailType = 'outlook' }) {
-      if (!websocket.isConnected) {
-        return this.addEmailAPI({ email, password, clientId, refreshToken, mailType });
-      }
-      
-      this.loading = true;
-      websocket.send('add_email', { 
-        email, 
-        password, 
-        client_id: clientId, 
-        refresh_token: refreshToken,
-        mail_type: mailType
-      });
-      return true;
-    },
-    
-    // 删除邮箱(API方式)
-    async deleteEmailAPI(emailId) {
-      this.loading = true;
-      this.error = null;
-      
-      try {
-        await api.emails.delete(emailId);
-        // 从列表和选中列表中移除
+        if (!websocket.isConnected) {
+          await api.emails.delete([emailId]);
+        } else {
+          websocket.send('delete_emails', { email_ids: [emailId] });
+        }
+        
+        // 更新本地状态
         this.emails = this.emails.filter(email => email.id !== emailId);
-        this.selectedEmails = this.selectedEmails.filter(id => id !== emailId);
-        return true;
+        if (Array.isArray(this.selectedEmails)) {
+          this.selectedEmails = this.selectedEmails.filter(id => id !== emailId);
+        }
       } catch (error) {
         this.error = '删除邮箱失败';
-        console.error(error);
-        return false;
+        throw error;
       } finally {
         this.loading = false;
       }
     },
     
-    // 删除邮箱(WebSocket方式)
-    deleteEmail(emailId) {
-      if (!websocket.isConnected) {
-        return this.deleteEmailAPI(emailId);
+    // 批量删除邮箱
+    async deleteEmails(emailIds) {
+      if (!Array.isArray(emailIds) || emailIds.length === 0) {
+        return;
       }
       
-      websocket.send('delete_emails', { email_ids: [emailId] });
-      return true;
-    },
-    
-    // 批量删除邮箱(API方式)
-    async batchDeleteEmailsAPI(emailIds) {
       this.loading = true;
       this.error = null;
       
       try {
-        await api.emails.batchDelete(emailIds);
-        // 从列表和选中列表中移除
+        if (!websocket.isConnected) {
+          await api.emails.delete(emailIds);
+        } else {
+          websocket.send('delete_emails', { email_ids: emailIds });
+        }
+        
+        // 更新本地状态
         this.emails = this.emails.filter(email => !emailIds.includes(email.id));
-        this.selectedEmails = this.selectedEmails.filter(id => !emailIds.includes(id));
-        return true;
+        if (Array.isArray(this.selectedEmails)) {
+          this.selectedEmails = this.selectedEmails.filter(id => !emailIds.includes(id));
+        }
       } catch (error) {
-        this.error = '批量删除邮箱失败';
-        console.error(error);
-        return false;
+        this.error = '删除邮箱失败';
+        throw error;
       } finally {
         this.loading = false;
       }
     },
     
-    // 批量删除邮箱(WebSocket方式)
-    batchDeleteEmails(emailIds) {
-      if (!websocket.isConnected) {
-        return this.batchDeleteEmailsAPI(emailIds);
+    // 检查单个邮箱
+    async checkEmail(emailId) {
+      try {
+        const response = await fetch(`/api/emails/${emailId}/check`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.status === 409) {
+          // 邮箱正在处理中，这是正常状态，不抛出错误
+          const data = await response.json();
+          console.log('邮箱正在处理中:', data);
+          return { success: false, message: data.message, status: 'processing' };
+        }
+        
+        if (!response.ok) {
+          throw new Error(`请求失败: ${response.status}`);
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('检查邮箱失败:', error);
+        throw error;
+      }
+    },
+    
+    // 批量检查邮箱
+    async checkEmails(emailIds) {
+      if (!Array.isArray(emailIds) || emailIds.length === 0) {
+        return;
       }
       
-      websocket.send('delete_emails', { email_ids: emailIds });
-      return true;
-    },
-    
-    // 删除选中的邮箱
-    deleteSelectedEmails() {
-      if (this.selectedEmails.length === 0) return false;
-      
-      const emailIds = [...this.selectedEmails];
-      return this.batchDeleteEmails(emailIds);
-    },
-    
-    // 检查邮箱邮件(API方式)
-    async checkEmailAPI(emailId) {
+      this.loading = true;
       this.error = null;
       
       try {
-        // 设置处理状态
-        this.processingEmails[emailId] = { progress: 0, message: '开始检查...' };
-        
-        await api.emails.check(emailId);
-        // 注意：这里不会获得实时进度，只有开始检查的状态
-        
-        return true;
+        if (!websocket.isConnected) {
+          await api.emails.check(emailIds);
+        } else {
+          websocket.send('check_emails', { email_ids: emailIds });
+        }
       } catch (error) {
         this.error = '检查邮箱失败';
-        this.processingEmails[emailId] = { progress: -1, message: '检查失败' };
-        console.error(error);
-        return false;
+        throw error;
+      } finally {
+        this.loading = false;
       }
     },
     
-    // 检查邮箱邮件(WebSocket方式)
-    checkEmail(emailId) {
-      if (!websocket.isConnected) {
-        return this.checkEmailAPI(emailId);
-      }
-      
-      // 设置初始进度状态
-      this.processingEmails[emailId] = { progress: 0, message: '开始检查...' };
-      
-      websocket.send('check_emails', { email_ids: [emailId] });
-      return true;
-    },
-    
-    // 批量检查邮箱邮件(API方式)
-    async batchCheckEmailsAPI(emailIds) {
-      this.error = null;
-      
-      try {
-        // 设置处理状态
-        emailIds.forEach(id => {
-          this.processingEmails[id] = { progress: 0, message: '开始检查...' };
-        });
-        
-        await api.emails.batchCheck(emailIds);
-        // 注意：这里不会获得实时进度，只有开始检查的状态
-        
-        return true;
-      } catch (error) {
-        this.error = '批量检查邮箱失败';
-        emailIds.forEach(id => {
-          this.processingEmails[id] = { progress: -1, message: '检查失败' };
-        });
-        console.error(error);
-        return false;
-      }
-    },
-    
-    // 批量检查邮箱邮件(WebSocket方式)
-    batchCheckEmails(emailIds) {
-      if (!websocket.isConnected) {
-        return this.batchCheckEmailsAPI(emailIds);
-      }
-      
-      // 设置初始进度状态
-      emailIds.forEach(id => {
-        this.processingEmails[id] = { progress: 0, message: '开始检查...' };
-      });
-      
-      websocket.send('check_emails', { email_ids: emailIds });
-      return true;
-    },
-    
-    // 检查所有邮箱邮件
-    checkAllEmails() {
-      const emailIds = this.emails.map(email => email.id);
-      return this.batchCheckEmails(emailIds);
-    },
-    
-    // 检查选中的邮箱邮件
-    checkSelectedEmails() {
-      if (this.selectedEmails.length === 0) return false;
-      
-      const emailIds = [...this.selectedEmails];
-      return this.batchCheckEmails(emailIds);
-    },
-    
-    // 获取邮件记录(API方式)
-    async fetchMailRecordsAPI(emailId) {
+    // 获取邮件记录
+    async fetchMailRecords(emailId) {
       this.loading = true;
       this.error = null;
-      this.currentEmailId = emailId;
       
       try {
-        const response = await api.emails.getMailRecords(emailId);
-        this.currentMailRecords = response;
+        if (!websocket.isConnected) {
+          const response = await api.emails.getRecords(emailId);
+          
+          // 确保返回数据是数组且每条记录格式正确
+          if (Array.isArray(response)) {
+            this.currentMailRecords = response.map(record => ({
+              id: record.id || Date.now() + Math.random().toString(36).substring(2, 10),
+              subject: record.subject || '(无主题)',
+              sender: record.sender || '(未知发件人)',
+              received_time: record.received_time || new Date().toISOString(),
+              content: record.content || '(无内容)',
+              folder: record.folder || 'INBOX'
+            }));
+          } else {
+            this.currentMailRecords = [];
+            console.error('API返回的邮件记录数据不是数组格式:', response);
+          }
+          
+          this.currentEmailId = emailId;
+        } else {
+          this.currentEmailId = emailId;
+          websocket.send('get_mail_records', { email_id: emailId });
+        }
       } catch (error) {
         this.error = '获取邮件记录失败';
         console.error(error);
@@ -330,73 +332,22 @@ export const useEmailsStore = defineStore('emails', {
       }
     },
     
-    // 获取邮件记录(WebSocket方式)
-    fetchMailRecords(emailId) {
-      if (!websocket.isConnected) {
-        return this.fetchMailRecordsAPI(emailId);
-      }
-      
-      this.loading = true;
-      this.currentEmailId = emailId;
-      websocket.send('get_mail_records', { email_id: emailId });
-    },
-    
-    // 批量导入邮箱(API方式)
-    async importEmailsAPI(data) {
-      this.loading = true;
-      this.error = null;
-      
+    // 获取邮箱密码
+    async getEmailPassword(emailId) {
       try {
-        const response = await api.emails.import(data);
-        await this.fetchEmailsAPI();
-        return response;
+        return await api.emails.getPassword(emailId);
       } catch (error) {
-        this.error = '导入邮箱失败';
-        console.error(error);
-        return null;
-      } finally {
-        this.loading = false;
+        this.error = '获取邮箱密码失败';
+        throw error;
       }
-    },
-    
-    // 批量导入邮箱(WebSocket方式)
-    importEmails(data) {
-      if (!websocket.isConnected) {
-        return this.importEmailsAPI(data);
-      }
-      
-      this.loading = true;
-      
-      // 格式化数据
-      const payload = typeof data === 'string' 
-        ? { data } 
-        : { data: data.data, mail_type: data.mailType || 'outlook' };
-      
-      websocket.send('import_emails', payload);
-      
-      // 返回Promise以便等待结果
-      return new Promise(resolve => {
-        const handler = (message) => {
-          if (message.type === 'import_result') {
-            this.loading = false;
-            websocket.offMessage('import_result', handler);
-            resolve(message);
-          }
-        };
-        
-        websocket.onMessage('import_result', handler);
-        
-        // 超时处理
-        setTimeout(() => {
-          this.loading = false;
-          websocket.offMessage('import_result', handler);
-          resolve(null);
-        }, 30000);
-      });
     },
     
     // 选择/取消选择邮箱
     toggleSelectEmail(emailId) {
+      if (!Array.isArray(this.selectedEmails)) {
+        this.selectedEmails = [];
+      }
+      
       const index = this.selectedEmails.indexOf(emailId);
       if (index === -1) {
         this.selectedEmails.push(emailId);
@@ -407,21 +358,11 @@ export const useEmailsStore = defineStore('emails', {
     
     // 选择所有邮箱
     selectAllEmails() {
-      this.selectedEmails = this.emails.map(email => email.id);
-    },
-    
-    // 取消选择所有邮箱
-    deselectAllEmails() {
-      this.selectedEmails = [];
-    },
-    
-    // 切换全选/取消全选
-    toggleSelectAll() {
-      if (this.isAllSelected) {
-        this.deselectAllEmails();
-      } else {
-        this.selectAllEmails();
+      if (!Array.isArray(this.emails)) {
+        this.selectedEmails = [];
+        return;
       }
+      this.selectedEmails = this.emails.map(email => email.id);
     },
     
     // 重置状态
@@ -433,31 +374,42 @@ export const useEmailsStore = defineStore('emails', {
       this.processingEmails = {};
       this.currentMailRecords = [];
       this.currentEmailId = null;
+      this.isConnected = false;
     },
     
-    // 获取邮箱密码
-    async getEmailPassword(emailId) {
+    // 更新邮箱
+    async updateEmail(email) {
       try {
-        this.emails.forEach(email => {
-          if (email.id === emailId) {
-            email.passwordLoading = true;
-          }
+        // 确保IMAP类型邮箱的use_ssl是布尔值
+        const emailData = { ...email }
+        if (emailData.mail_type === 'imap' && 'use_ssl' in emailData) {
+          emailData.use_ssl = Boolean(emailData.use_ssl)
+        }
+        
+        const response = await fetch(`/api/emails/${emailData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(emailData)
         });
         
-        // 直接使用原始api对象调用
-        const response = await api.get(`/emails/${emailId}/password`);
-        return response.data;
+        if (!response.ok) {
+          throw new Error(`更新邮箱失败: ${response.status}`);
+        }
+        
+        // 更新本地邮箱数据
+        const index = this.emails.findIndex(e => e.id === emailData.id);
+        if (index !== -1) {
+          this.emails[index] = { ...this.emails[index], ...emailData };
+        }
+        
+        return true;
       } catch (error) {
-        this.error = '获取邮箱密码失败';
-        console.error(error);
+        console.error('更新邮箱失败:', error);
         throw error;
-      } finally {
-        this.emails.forEach(email => {
-          if (email.id === emailId) {
-            email.passwordLoading = false;
-          }
-        });
       }
-    },
+    }
   }
 }); 

@@ -123,6 +123,8 @@ const actions = {
         isAdmin: response.data.user.is_admin
       }
       
+      console.log('登录成功，用户信息:', user, '管理员状态:', user.isAdmin, '原始数据:', response.data.user)
+      
       // 保存token到localStorage
       localStorage.setItem('token', token)
       
@@ -224,6 +226,7 @@ const actions = {
         username: response.data.username,
         isAdmin: response.data.is_admin
       }
+      console.log('获取当前用户信息成功:', user.username, '管理员状态:', user.isAdmin, '原始数据:', response.data)
       commit('AUTH_SUCCESS', { token: state.token, user })
       return user
     } catch (error) {
@@ -250,63 +253,46 @@ const actions = {
     }
   },
   
-  // 管理员：获取所有用户
+  // 用户管理（管理员功能）
   async getAllUsers({ commit, state }) {
-    if (!state.token || !state.user?.isAdmin) return []
-    
-    commit('AUTH_REQUEST')
     try {
-      const response = await api.getAllUsers()
-      commit('CLEAR_ERROR')
-      return response.data
+      const response = await api.get('/api/users');
+      return response.data;
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '获取用户列表失败')
-      throw error
+      console.error('获取用户列表失败:', error);
+      throw error;
     }
   },
   
-  // 管理员：创建用户
   async createUser({ commit, state }, userData) {
-    if (!state.token || !state.user?.isAdmin) throw new Error('需要管理员权限')
-    
-    commit('AUTH_REQUEST')
     try {
-      const response = await api.createUser(userData)
-      commit('CLEAR_ERROR')
-      return response.data
+      const response = await api.post('/api/users', userData);
+      return response.data;
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '创建用户失败')
-      throw error
+      console.error('创建用户失败:', error);
+      throw error;
     }
   },
   
-  // 管理员：删除用户
   async deleteUser({ commit, state }, userId) {
-    if (!state.token || !state.user?.isAdmin) throw new Error('需要管理员权限')
-    
-    commit('AUTH_REQUEST')
     try {
-      const response = await api.deleteUser(userId)
-      commit('CLEAR_ERROR')
-      return response.data
+      const response = await api.delete(`/api/users/${userId}`);
+      return response.data;
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '删除用户失败')
-      throw error
+      console.error('删除用户失败:', error);
+      throw error;
     }
   },
   
-  // 管理员：重置用户密码
   async resetUserPassword({ commit, state }, { userId, newPassword }) {
-    if (!state.token || !state.user?.isAdmin) throw new Error('需要管理员权限')
-    
-    commit('AUTH_REQUEST')
     try {
-      const response = await api.resetUserPassword(userId, newPassword)
-      commit('CLEAR_ERROR')
-      return response.data
+      const response = await api.post(`/api/users/${userId}/reset-password`, {
+        new_password: newPassword
+      });
+      return response.data;
     } catch (error) {
-      commit('AUTH_ERROR', error.response?.data?.error || '重置密码失败')
-      throw error
+      console.error('重置用户密码失败:', error);
+      throw error;
     }
   },
   

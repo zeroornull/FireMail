@@ -115,7 +115,11 @@ const router = useRouter()
 const websocketConnected = computed(() => store.state.websocketConnected)
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currentUser = computed(() => store.getters['auth/currentUser'])
-const isAdmin = computed(() => store.getters['auth/isAdmin'])
+const isAdmin = computed(() => {
+  const adminStatus = store.getters['auth/isAdmin']
+  console.log('管理员状态检查:', adminStatus, '当前用户:', store.getters['auth/currentUser'])
+  return adminStatus
+})
 
 // 监听滚动事件
 const handleScroll = () => {
@@ -128,11 +132,15 @@ const initializeAuth = async () => {
   
   if (isAuthenticated.value) {
     try {
-      // 获取当前用户信息
+      // 强制获取当前用户最新信息
+      console.log('初始化认证状态 - 获取最新用户信息')
       await store.dispatch('auth/getCurrentUser')
+      console.log('用户信息更新完成，当前用户:', currentUser.value, '管理员状态:', isAdmin.value)
     } catch (error) {
       console.error('获取用户信息失败:', error)
     }
+  } else {
+    console.log('用户未认证，跳过获取用户信息')
   }
   
   initializing.value = false

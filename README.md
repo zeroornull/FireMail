@@ -1,146 +1,139 @@
 # 🔥 FireMail - 花火邮箱助手
 
-🌟 一款专为Microsoft邮箱设计的批量收件工具，提供简单高效的邮件管理解决方案。
+🌟 一款专为多种邮箱设计的批量收件工具，提供简单高效的邮件管理解决方案。
 
 [![GitHub](https://img.shields.io/github/license/fengyuanluo/FireMail)](https://github.com/fengyuanluo/FireMail)
 
 ## 🖼️ 项目截图
 
-![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250405191319.png)
+![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250410194654.png)
 
-![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250405191341.png)
+![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250410194726.png)
 
-![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250405191357.png)
+![image](https://git.adust.f5.si/gh/fengyuanluo/tuchuang@main/20250410194744.png)
 
 ## 📋 项目功能
 
 - 📥 **批量导入邮箱**：支持"邮箱----密码----客户端ID----RefreshToken"的批量导入格式
-- 📊 **邮箱管理**：批量操作多个邮箱账户
-- 📬 **自动收信**：对导入的邮箱进行自动收信操作
-- 👥 **多用户系统**：支持用户注册、登录，权限分级管理
-- 🔐 **安全管理**：数据存储在本地SQLite数据库，确保安全性
+- 📊 **邮箱管理**：批量操作多个邮箱账户，支持单个或批量删除
+- 📬 **自动收信**：对导入的邮箱进行自动收信操作，支持全部收信或选择性收信
+- 👥 **多用户系统**：支持用户注册、登录，权限分级管理，管理员可管理所有用户
+- 🔐 **安全管理**：数据存储在本地SQLite数据库，密码采用PBKDF2和SHA-256算法加密
+- 🔍 **邮件搜索**：支持按关键词、发件人、主题等条件搜索邮件
+- 📱 **响应式设计**：适配桌面和移动设备，提供良好的用户体验
+
+## 📧 支持的邮箱类型
+
+目前已支持以下类型的邮箱：
+
+- **Microsoft Outlook**
+- **Hotmail**
+- **Gmail**
+- **QQ邮箱**
+- **IMAP协议邮箱**（通用支持）
 
 ## ✨ 项目特点
 
 - 🚀 **批量管理**：支持多选、全选邮箱，进行批量删除、收信操作
-- 🔄 **WebSocket实时通信**：及时反馈处理进度和结果
+- 🔄 **WebSocket实时通信**：及时反馈处理进度和结果，提供良好的交互体验
 - 🧵 **多线程处理**：提高邮件收取效率，支持并行处理多个邮箱
-- 🎨 **简洁界面**：简约现代的用户界面，操作简单直观
-- 💻 **跨平台支持**：支持Windows和Linux平台
-- 🔧 **Docker支持**：可打包为Docker容器快速部署
+- 🎨 **简洁界面**：基于Vue 3和Element Plus构建简约现代的用户界面
+- 💻 **跨平台支持**：支持Windows和Linux平台，满足不同环境需求
+- 🔧 **Docker支持**：可打包为Docker容器快速部署，提供多种部署方式
+
+## 🏗️ 系统架构
+
+FireMail采用前后端分离的架构设计，主要包含以下几个核心部分：
+
+1. **前端界面**：基于Vue.js和Element Plus构建的用户界面
+2. **后端API服务**：使用Flask框架实现的RESTful API
+3. **WebSocket服务**：用于实时通信和进度反馈
+4. **数据库**：SQLite关系型数据库用于数据存储
+5. **邮件处理引擎**：处理邮件收取、解析和存储的核心模块
+
+```
++-------------------+        +-------------------+
+|                   |        |                   |
+|   用户浏览器       |  HTTP  |   前端应用        |
+|   (Browser)       |<------>|   (Vue.js)        |
+|                   |        |                   |
++-------------------+        +---------^---------+
+                                      |
+                                      | WebSocket/HTTP
+                                      |
++-------------------+        +---------v---------+
+|                   |        |                   |
+|   数据库          |<------>|   后端API服务      |
+|   (SQLite)        |        |   (Flask)         |
+|                   |        |                   |
++-------------------+        +---------^---------+
+                                      |
+                                      | 调用
+                                      |
+                             +---------v---------+
+                             |                   |
+                             |   邮件处理引擎     |
+                             |   (Python)        |
+                             |                   |
+                             +-------------------+
+                                      |
+                                      | OAuth/IMAP
+                                      |
+                             +---------v---------+
+                             |                   |
+                             |   邮件服务器       |
+                             |   (Outlook等)     |
+                             |                   |
+                             +-------------------+
+```
 
 ## 🛠️ 技术栈
 
-- **后端**：Python 3.13, Flask, SQLite, WebSocket
+- **后端**：Python 3.10+, Flask, SQLite, WebSocket
 - **前端**：Vue 3, Vite, Element Plus
 - **其他**：OAuth 2.0, IMAP, Docker
 
-## 🚀 部署教程
+## 📚 文档
 
-### 🐳 Docker部署
+详细的部署指南、使用说明和API文档请查看项目的`docs`文件夹：
 
-```bash
-# 拉取镜像
-docker pull luofengyuan/FireMail:latest
-
-# 运行容器
-docker run -d \
-  --name firemail \
-  -p 80:80 \
-  -v ./data:/app/backend/data \
-  --restart unless-stopped \
-  luofengyuan/FireMail:latest
-```
-
-### 🐙 Docker-Compose部署
-
-1. 创建`docker-compose.yml`文件：
-
-```yaml
-version: '3'
-
-services:
-  FireMail:
-    image: luofengyuan/FireMail:latest
-    container_name: firemail
-    restart: unless-stopped
-    ports:
-      - "80:80"  # 只暴露一个端口，通过Nginx进行反向代理
-    volumes:
-      - ./backend/data:/app/backend/data
-    environment:
-      - TZ=Asia/Shanghai
-      - HOST=0.0.0.0
-      - FLASK_PORT=5000  # 后端服务器端口
-      - WS_PORT=8765     # WebSocket服务器端口
-      - JWT_SECRET_KEY=your_secret_key_here  # 建议修改为随机字符串
-```
-
-2. 启动服务：
-
-```bash
-docker-compose up -d
-```
-
-### 📦 源代码部署
-
-1. 克隆仓库：
-```bash
-git clone https://github.com/fengyuanluo/FireMail.git
-cd FireMail
-```
-
-2. 安装后端依赖：
-```bash
-pip install -r requirements.txt
-```
-
-3. 安装前端依赖并构建：
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-4. 启动后端服务：
-```bash
-cd ../backend
-python app.py
-```
-
-5. 在浏览器中访问 `http://localhost:3000`
-
-## 📝 使用说明
-
-1. **导入邮箱**：在"批量导入"页面，按照"邮箱----密码----客户端ID----RefreshToken"格式导入邮箱
-2. **管理邮箱**：在"邮箱管理"页面查看所有导入的邮箱，进行单个或批量操作
-3. **收取邮件**：点击"收信"按钮开始收取邮件，实时查看进度
-4. **查看邮件**：点击邮箱可以查看已收取的所有邮件内容
-
-## 👤 用户认证
-
-- 🔐 系统默认开启注册功能
-- 👑 第一个注册的用户自动成为管理员
-- 🔒 管理员可以开启或关闭注册功能
-- 👥 管理员可以手动添加、删除用户和重置用户密码
+- **部署指南**：[docs/部署指南.md](docs/部署指南.md)
+- **用户指南**：[docs/用户指南.md](docs/用户指南.md)
+- **API接口文档**：[docs/API接口文档.md](docs/API接口文档.md)
+- **系统架构**：[docs/系统架构.md](docs/系统架构.md)
 
 ## 🔮 未来开发计划
 
-- 📧 **支持更多邮箱类型**：
-  - Gmail
-  - Yahoo
-  - 163邮箱
-  - QQ邮箱
-  - 其他主流邮箱服务
+### 📧 更多邮箱类型支持
 
-- 🏗️ **优化Docker镜像**：
-  - 使用Alpine Linux作为基础镜像，大幅减小镜像体积
-  - 进一步优化构建流程，提高镜像构建效率
+- **Yahoo Mail**：雅虎邮箱
+- **163邮箱**：网易163邮箱
+- **Proton Mail**：注重隐私的加密邮箱
+- **Zoho Mail**：企业邮箱解决方案
 
-- 🔍 **更多功能**：
-  - 邮件内容搜索
-  - 邮件分类与标签
-  - 自动回复功能
+### 🎨 界面美化
+
+- **深色模式**：提供暗黑主题支持
+- **自定义主题**：允许用户自定义界面颜色
+- **更多视觉效果**：添加过渡动画和交互反馈
+- **移动端优化**：进一步优化移动设备体验
+- **响应式布局增强**：适配更多屏幕尺寸
+
+### 📤 发件功能支持
+
+- **基础发信功能**：支持纯文本和HTML格式邮件发送
+- **定时发送**：设置邮件在特定时间发送
+- **群发功能**：支持一次向多个收件人发送邮件
+- **邮件模板**：预设多种邮件模板，快速编辑发送
+- **草稿保存**：自动保存未完成的邮件为草稿
+
+### 📈 邮箱功能增强
+
+- **邮件分类与标签**：智能分类和标签管理
+- **邮件过滤规则**：自定义邮件过滤和自动处理规则
+- **邮件提醒**：重要邮件的通知提醒
+- **邮件归档**：长期存储和归档管理
+- **数据分析**：邮件使用情况统计和可视化分析
 
 ## 📄 开源协议
 
@@ -151,13 +144,18 @@ python app.py
 1. 本工具仅用于方便用户管理自己的邮箱账户，请勿用于非法用途。
 2. 使用本工具过程中产生的任何数据安全问题、账户安全问题或违反相关服务条款的行为，均由用户自行承担责任。
 3. 开发者不对使用本工具过程中可能出现的任何损失或风险负责。
-4. 本工具与Microsoft等邮箱服务提供商没有任何官方关联，使用时请遵守相关服务条款。
+4. 本工具与Microsoft、Google等邮箱服务提供商没有任何官方关联，使用时请遵守相关服务条款。
 5. 邮箱账号和密码等敏感信息仅存储在本地SQLite数据库中，请确保服务器安全，防止数据泄露。
+6. 使用本工具可能会受到邮箱服务提供商的API访问限制或策略变更的影响，如遇访问受限，请遵循相关提供商的政策调整使用方式。
+7. 本工具不保证100%的兼容性和可用性，可能因第三方服务变更而需要更新。
+8. 用户在使用过程中应遵守当地法律法规，不得用于侵犯他人隐私或其他非法活动。
+9. 本软件按"原样"提供，不提供任何形式的保证，无论是明示的还是暗示的。
 
 ## 🔗 相关链接
 
 - 项目地址：[https://github.com/fengyuanluo/FireMail](https://github.com/fengyuanluo/FireMail)
 - 问题反馈：请在项目的Issues页面提交
+- 文档目录：查看`/docs`文件夹获取更详细的使用指南、API文档和部署说明
 
 ---
 

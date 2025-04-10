@@ -13,7 +13,7 @@
         </div>
         <div class="info-row">
           <span class="info-label">账户类型</span>
-          <span class="info-value">{{ currentUser.is_admin ? '管理员' : '普通用户' }}</span>
+          <span class="info-value">{{ currentUser.isAdmin ? '管理员' : '普通用户' }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">注册时间</span>
