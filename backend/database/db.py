@@ -78,6 +78,7 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
                     salt TEXT NOT NULL,
                     is_admin INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -137,6 +138,7 @@ class Database:
             
             # 检查并添加新字段
             self._check_and_add_column('emails', 'enable_realtime_check', 'INTEGER DEFAULT 0')
+            self._check_and_add_column('users', 'password_hash', 'TEXT NOT NULL')
             
             self.conn.commit()
             logger.info(f"初始化数据库表结构: {self.db_path}")
