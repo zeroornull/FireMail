@@ -16,14 +16,28 @@ RUN pnpm build
 # --- Python Dependencies Stage ---
 FROM alpine AS python-deps
 
-# Install Python and build dependencies
-RUN apk add --no-cache python3 py3-pip gcc musl-dev python3-dev
+# Install Python, build dependencies and pre-compiled packages
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    gcc \
+    g++ \
+    musl-dev \
+    python3-dev \
+    linux-headers \
+    make \
+    py3-numpy \
+    py3-scipy \
+    py3-pandas \
+    py3-cryptography \
+    py3-lxml \
+    py3-pillow
 
 # Copy requirements file
 COPY backend/requirements.txt /requirements.txt
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
+# Install Python dependencies with extra options for complex packages
+RUN pip3 install --no-cache-dir --no-binary :all: -r /requirements.txt --break-system-packages
 
 # --- Final Stage ---
 FROM alpine
