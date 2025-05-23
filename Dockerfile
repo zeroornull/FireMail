@@ -24,10 +24,10 @@ ENV HOST=0.0.0.0 \
     TZ=Asia/Shanghai \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    JWT_SECRET_KEY=huohuo_email_secret_key
+    JWT_SECRET_KEY=${JWT_SECRET_KEY:-huohuo_email_secret_key}
 
-# Install Python
-RUN apk add --no-cache py3-pip caddy bash
+# Install Python and required packages
+RUN apk add --no-cache python3 py3-pip caddy bash
 
 # Copy necessary files from builder stage
 COPY --from=builder /app /app
@@ -40,7 +40,7 @@ RUN chmod +x /app/docker-entrypoint.sh
 WORKDIR /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r backend/requirements.txt --break-system-packages
+RUN pip3 install --no-cache-dir -r backend/requirements.txt
 
 # Expose port
 EXPOSE 80
