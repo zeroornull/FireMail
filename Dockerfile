@@ -31,13 +31,15 @@ RUN apk add --no-cache \
     py3-pandas \
     py3-cryptography \
     py3-lxml \
-    py3-pillow
+    py3-pillow \
+    python3-full-dev
 
 # Copy requirements file
 COPY backend/requirements.txt /requirements.txt
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
+RUN pip3 install --no-cache-dir --no-deps cchardet==2.1.7 && \
+    pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
 
 # --- Final Stage ---
 FROM alpine
