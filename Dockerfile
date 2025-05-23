@@ -13,8 +13,23 @@ RUN pnpm install
 RUN pnpm install dayjs # 漏了一个依赖
 RUN pnpm build
 
+# --- Python Dependencies Stage ---
+FROM alpine AS python-deps
+
+# Install Python and build dependencies
+RUN apk add --no-cache python3 py3-pip gcc musl-dev python3-dev
+
+# Copy requirements file
+COPY backend/requirements.txt /requirements.txt
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
+
 # --- Final Stage ---
 FROM alpine
+
+# Default value for JWT secret key (can be overridden at runtime)
+ARG JWT_SECRET_KEY=huohuo_email_secret_key
 
 # Environment variables
 ENV HOST=0.0.0.0 \
@@ -24,13 +39,16 @@ ENV HOST=0.0.0.0 \
     TZ=Asia/Shanghai \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    JWT_SECRET_KEY=${JWT_SECRET_KEY:-huohuo_email_secret_key}
+    JWT_SECRET_KEY=$JWT_SECRET_KEY
 
-# Install Python and required packages
+# Install Python and required packages (no build tools)
 RUN apk add --no-cache python3 py3-pip caddy bash
 
 # Copy necessary files from builder stage
 COPY --from=builder /app /app
+
+# Copy Python packages from python-deps stage
+COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
 
 # 显式复制启动脚本并设置权限
 COPY docker-entrypoint.sh /app/
@@ -38,9 +56,6 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 # Set working directory
 WORKDIR /app
-
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r backend/requirements.txt
 
 # Expose port
 EXPOSE 80
