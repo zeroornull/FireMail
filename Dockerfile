@@ -36,14 +36,11 @@ RUN apk add --no-cache \
 # Copy requirements file
 COPY backend/requirements.txt /requirements.txt
 
-# Install Python dependencies with extra options for complex packages
-RUN pip3 install --no-cache-dir --no-binary :all: -r /requirements.txt --break-system-packages
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
 
 # --- Final Stage ---
 FROM alpine
-
-# Default value for JWT secret key (can be overridden at runtime)
-ARG JWT_SECRET_KEY=huohuo_email_secret_key
 
 # Environment variables
 ENV HOST=0.0.0.0 \
@@ -52,8 +49,7 @@ ENV HOST=0.0.0.0 \
     FRONTEND_PORT=3000 \
     TZ=Asia/Shanghai \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    JWT_SECRET_KEY=$JWT_SECRET_KEY
+    PYTHONUNBUFFERED=1
 
 # Install Python and required packages (no build tools)
 RUN apk add --no-cache python3 py3-pip caddy bash
