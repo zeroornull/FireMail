@@ -40,7 +40,7 @@ RUN chmod +x /app/docker-entrypoint.sh
 WORKDIR /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt --break-system-packages
+RUN pip install --no-cache-dir -r backend/requirements.txt --break-system-packages
 
 # Expose port
 EXPOSE 80
