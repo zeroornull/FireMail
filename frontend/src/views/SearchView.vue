@@ -1,12 +1,12 @@
 <template>
   <div class="search-view">
     <h1 class="page-title">搜索邮件</h1>
-    
+
     <!-- 搜索组件 -->
     <div class="search-bar">
       <SearchComponent />
     </div>
-    
+
     <!-- 搜索结果 -->
     <el-card class="search-results-card" v-loading="loading">
       <template #header>
@@ -17,7 +17,7 @@
           </div>
         </div>
       </template>
-      
+
       <div v-if="searchResults.length > 0">
         <el-table
           :data="searchResults"
@@ -53,9 +53,9 @@
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="scope">
-              <el-button 
-                type="primary" 
-                size="small" 
+              <el-button
+                type="primary"
+                size="small"
                 @click="viewMailContent(scope.row)"
                 :icon="Document"
               >
@@ -72,7 +72,7 @@
         请在上方输入关键词开始搜索
       </div>
     </el-card>
-    
+
     <!-- 邮件内容查看对话框 -->
     <el-dialog
       v-model="mailContentDialogVisible"
@@ -82,24 +82,12 @@
       class="mail-content-dialog"
     >
       <div v-if="selectedMail" class="mail-detail">
-        <div class="mail-info">
-          <div class="info-item">
-            <span class="label">发件人:</span>
-            <span class="value">{{ selectedMail.sender }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">收件人:</span>
-            <span class="value">{{ selectedMail.email_address }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">接收时间:</span>
-            <span class="value">{{ formatDate(selectedMail.received_time) }}</span>
-          </div>
-        </div>
-        <el-divider />
-        <div class="mail-content">
-          <pre>{{ selectedMail.content }}</pre>
-        </div>
+        <!-- 使用EmailContentViewer组件 -->
+        <EmailContentViewer
+          :mail="selectedMail"
+          :attachments="selectedMail.attachments || []"
+          :loading-attachments="false"
+        />
       </div>
     </el-dialog>
   </div>
@@ -112,6 +100,8 @@ import { ElMessage } from 'element-plus';
 import { Document } from '@element-plus/icons-vue';
 import SearchComponent from '@/components/SearchComponent.vue';
 import api from '@/services/api';
+import DOMPurify from 'dompurify';
+import EmailContentViewer from '@/components/EmailContentViewer.vue';
 
 // 路由器和当前路由
 const router = useRouter();
@@ -129,7 +119,7 @@ const formatDate = (dateString) => {
   if (!dateString) return '未知';
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return dateString;
-  
+
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
@@ -145,10 +135,10 @@ const performSearch = async (query, searchInFields) => {
   if (!query || !searchInFields || searchInFields.length === 0) {
     return;
   }
-  
+
   loading.value = true;
   hasSearched.value = true;
-  
+
   try {
     const response = await api.search(query, searchInFields);
     searchResults.value = response.data.results || [];
@@ -168,6 +158,58 @@ const performSearch = async (query, searchInFields) => {
 const viewMailContent = (mail) => {
   selectedMail.value = mail;
   mailContentDialogVisible.value = true;
+};
+
+// 检查邮件内容是否为HTML格式
+const isHtmlContent = (mail) => {
+  if (!mail || !mail.content) return false;
+
+  // 兼容新旧格式
+  if (typeof mail.content === 'object') {
+    return mail.content.has_html === true || mail.content.content_type === 'text/html';
+  }
+
+  // 旧格式，检查内容是否包含HTML标签
+  const content = String(mail.content);
+  return content.includes('<html') || content.includes('<body') ||
+         content.includes('<div') || content.includes('<p>') ||
+         content.includes('<table') || content.includes('<img');
+}
+
+// 获取邮件内容
+const getMailContent = (mail) => {
+  if (!mail) return '';
+
+  // 兼容新旧格式
+  if (typeof mail.content === 'object' && mail.content !== null) {
+    return mail.content.content || '';
+  }
+
+  return mail.content || '';
+}
+
+// 净化HTML内容，防止XSS攻击
+const sanitizeHtml = (html) => {
+  if (!html) return '';
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'a', 'b', 'br', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'i', 'img', 'li', 'ol', 'p', 'span', 'strong', 'table', 'tbody',
+      'td', 'th', 'thead', 'tr', 'u', 'ul', 'font', 'blockquote', 'hr',
+      'pre', 'code', 'col', 'colgroup', 'section', 'header', 'footer',
+      'nav', 'article', 'aside', 'figure', 'figcaption', 'address', 'main',
+      'caption', 'center', 'cite', 'dd', 'dl', 'dt', 'mark', 's', 'small',
+      'strike', 'sub', 'sup'
+    ],
+    ALLOWED_ATTR: [
+      'href', 'target', 'src', 'alt', 'style', 'class', 'id', 'width', 'height',
+      'align', 'valign', 'bgcolor', 'border', 'cellpadding', 'cellspacing',
+      'color', 'colspan', 'dir', 'face', 'frame', 'frameborder', 'headers',
+      'hspace', 'lang', 'marginheight', 'marginwidth', 'nowrap', 'rel',
+      'rev', 'rowspan', 'scrolling', 'shape', 'span', 'summary', 'title',
+      'usemap', 'vspace', 'start', 'type', 'value', 'size', 'data-*'
+    ]
+  });
 };
 
 // 按发件人搜索
@@ -320,6 +362,36 @@ pre {
   margin: 0;
 }
 
+.html-content {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+
+.html-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.html-content a {
+  color: #409eff;
+  text-decoration: underline;
+}
+
+.html-content table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.html-content th,
+.html-content td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
 /* 表格样式优化 */
 :deep(.el-table) {
   border-radius: 8px;
@@ -343,13 +415,13 @@ pre {
   .search-view {
     padding: 10px;
   }
-  
+
   .mail-detail {
     padding: 0 10px;
   }
-  
+
   .page-title {
     font-size: 22px;
   }
 }
-</style> 
+</style>

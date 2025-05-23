@@ -15,19 +15,19 @@
         <button class="btn btn-primary" @click="showAddUserModal = true">添加用户</button>
       </div>
     </div>
-    
+
     <div class="alert-container">
       <div v-if="message" :class="['alert', message.type === 'success' ? 'alert-success' : 'alert-danger']">
         {{ message.text }}
       </div>
     </div>
-    
+
     <div class="users-list-container">
       <div v-if="loading" class="loading-spinner">
         <div class="spinner"></div>
         <p>加载中...</p>
       </div>
-      
+
       <table v-else class="users-table">
         <thead>
           <tr>
@@ -48,15 +48,15 @@
             <td>{{ user.is_admin ? '管理员' : '普通用户' }}</td>
             <td>{{ formatDate(user.created_at) }}</td>
             <td class="actions">
-              <button 
-                class="btn btn-sm btn-warning" 
+              <button
+                class="btn btn-sm btn-warning"
                 @click="openResetPasswordModal(user)"
                 :disabled="user.id === currentUser.id"
               >
                 重置密码
               </button>
-              <button 
-                class="btn btn-sm btn-danger" 
+              <button
+                class="btn btn-sm btn-danger"
                 @click="openDeleteUserModal(user)"
                 :disabled="user.id === currentUser.id"
               >
@@ -67,7 +67,7 @@
         </tbody>
       </table>
     </div>
-    
+
     <!-- 添加用户模态框 -->
     <div v-if="showAddUserModal" class="modal-overlay">
       <div class="modal-container">
@@ -79,40 +79,40 @@
           <div v-if="addUserError" class="alert alert-danger">
             {{ addUserError }}
           </div>
-          
+
           <form @submit.prevent="handleAddUser">
             <div class="form-group">
               <label for="newUsername">用户名</label>
-              <input 
-                type="text" 
-                id="newUsername" 
-                v-model="newUser.username" 
-                class="form-control" 
-                placeholder="请输入用户名" 
+              <input
+                type="text"
+                id="newUsername"
+                v-model="newUser.username"
+                class="form-control"
+                placeholder="请输入用户名"
                 required
               />
               <small class="form-text text-muted">用户名长度应为3-20个字符</small>
             </div>
-            
+
             <div class="form-group">
               <label for="newPassword">密码</label>
-              <input 
-                type="password" 
-                id="newPassword" 
-                v-model="newUser.password" 
-                class="form-control" 
-                placeholder="请输入密码" 
+              <input
+                type="password"
+                id="newPassword"
+                v-model="newUser.password"
+                class="form-control"
+                placeholder="请输入密码"
                 required
               />
               <small class="form-text text-muted">密码长度应至少为6个字符</small>
             </div>
-            
+
             <div class="form-group">
               <label>
                 <input type="checkbox" v-model="newUser.is_admin" /> 管理员权限
               </label>
             </div>
-            
+
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="showAddUserModal = false">取消</button>
               <button type="submit" class="btn btn-primary" :disabled="addUserLoading || !newUserFormValid">
@@ -124,7 +124,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 重置密码模态框 -->
     <div v-if="showResetPasswordModal" class="modal-overlay">
       <div class="modal-container">
@@ -136,33 +136,33 @@
           <div v-if="resetPasswordError" class="alert alert-danger">
             {{ resetPasswordError }}
           </div>
-          
+
           <form @submit.prevent="handleResetPassword">
             <div class="form-group">
               <label for="newPasswordInput">新密码</label>
-              <input 
-                type="password" 
-                id="newPasswordInput" 
-                v-model="resetPasswordData.newPassword" 
-                class="form-control" 
-                placeholder="请输入新密码" 
+              <input
+                type="password"
+                id="newPasswordInput"
+                v-model="resetPasswordData.newPassword"
+                class="form-control"
+                placeholder="请输入新密码"
                 required
               />
               <small class="form-text text-muted">密码长度应至少为6个字符</small>
             </div>
-            
+
             <div class="form-group">
               <label for="confirmPasswordInput">确认密码</label>
-              <input 
-                type="password" 
-                id="confirmPasswordInput" 
-                v-model="resetPasswordData.confirmPassword" 
-                class="form-control" 
-                placeholder="请再次输入新密码" 
+              <input
+                type="password"
+                id="confirmPasswordInput"
+                v-model="resetPasswordData.confirmPassword"
+                class="form-control"
+                placeholder="请再次输入新密码"
                 required
               />
             </div>
-            
+
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="showResetPasswordModal = false">取消</button>
               <button type="submit" class="btn btn-primary" :disabled="resetPasswordLoading || !resetPasswordFormValid">
@@ -174,7 +174,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 删除用户模态框 -->
     <div v-if="showDeleteUserModal" class="modal-overlay">
       <div class="modal-container">
@@ -186,16 +186,16 @@
           <div v-if="deleteUserError" class="alert alert-danger">
             {{ deleteUserError }}
           </div>
-          
+
           <p>您确定要删除用户 <strong>{{ selectedUser?.username }}</strong> 吗？</p>
           <p class="text-danger">此操作不可逆，用户所有数据将被永久删除。</p>
-          
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="showDeleteUserModal = false">取消</button>
-            <button 
-              type="button" 
-              class="btn btn-danger" 
-              @click="handleDeleteUser" 
+            <button
+              type="button"
+              class="btn btn-danger"
+              @click="handleDeleteUser"
               :disabled="deleteUserLoading"
             >
               <span v-if="deleteUserLoading">删除中...</span>
@@ -218,14 +218,14 @@ export default {
       message: null,
       messageTimeout: null,
       registrationEnabled: false,
-      
+
       // 当前用户
       currentUser: {
         id: null,
         username: '',
         is_admin: false
       },
-      
+
       // 添加用户
       showAddUserModal: false,
       newUser: {
@@ -235,7 +235,7 @@ export default {
       },
       addUserLoading: false,
       addUserError: null,
-      
+
       // 重置密码
       showResetPasswordModal: false,
       selectedUser: null,
@@ -245,7 +245,7 @@ export default {
       },
       resetPasswordLoading: false,
       resetPasswordError: null,
-      
+
       // 删除用户
       showDeleteUserModal: false,
       deleteUserLoading: false,
@@ -254,19 +254,19 @@ export default {
   },
   computed: {
     newUserFormValid() {
-      return this.newUser.username.length >= 3 && 
-             this.newUser.username.length <= 20 && 
+      return this.newUser.username.length >= 3 &&
+             this.newUser.username.length <= 20 &&
              this.newUser.password.length >= 6;
     },
     resetPasswordFormValid() {
-      return this.resetPasswordData.newPassword.length >= 6 && 
+      return this.resetPasswordData.newPassword.length >= 6 &&
              this.resetPasswordData.newPassword === this.resetPasswordData.confirmPassword;
     }
   },
   methods: {
     formatDate(dateString) {
       if (!dateString) return '未知';
-      
+
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('zh-CN', {
         year: 'numeric',
@@ -276,85 +276,56 @@ export default {
         minute: '2-digit'
       }).format(date);
     },
-    
+
     showMessage(type, text, duration = 3000) {
       this.message = { type, text };
-      
+
       if (this.messageTimeout) {
         clearTimeout(this.messageTimeout);
       }
-      
+
       this.messageTimeout = setTimeout(() => {
         this.message = null;
       }, duration);
     },
-    
+
     async fetchUsers() {
       this.loading = true;
-      
+
       try {
-        const response = await fetch('/api/users', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`获取用户列表失败: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        this.users = data;
+        // 使用api对象调用，确保使用正确的基础URL
+        const response = await this.$store.dispatch('auth/getAllUsers');
+        this.users = response;
       } catch (error) {
         this.showMessage('error', '获取用户列表失败: ' + (error.message || '未知错误'));
       } finally {
         this.loading = false;
       }
     },
-    
+
     async fetchSystemConfig() {
       try {
-        const response = await fetch('/api/config', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`获取系统配置失败: ${response.status}`);
+        // 使用api对象调用，确保使用正确的基础URL
+        const response = await this.$store.dispatch('auth/getConfig');
+        if (response) {
+          this.registrationEnabled = response.allow_register;
         }
-        
-        const data = await response.json();
-        this.registrationEnabled = data.allow_register;
       } catch (error) {
         console.error('获取系统配置失败', error);
       }
     },
-    
+
     async toggleRegistration(value) {
       try {
-        const response = await fetch('/api/admin/config/registration', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ allow: value })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`切换注册功能失败: ${response.status}`);
-        }
-        
+        // 使用api对象调用，确保使用正确的基础URL
+        await this.$store.dispatch('auth/toggleRegistration', value);
         this.showMessage('success', `已${value ? '开启' : '关闭'}注册功能`);
       } catch (error) {
         this.registrationEnabled = !value; // 恢复原状态
-        this.showMessage('error', `${value ? '开启' : '关闭'}注册功能失败`);
+        this.showMessage('error', `${value ? '开启' : '关闭'}注册功能失败: ${error.message || '未知错误'}`);
       }
     },
-    
+
     // 添加用户
     async handleAddUser() {
       if (!this.newUserFormValid) {
@@ -365,32 +336,21 @@ export default {
         }
         return;
       }
-      
+
       this.addUserLoading = true;
       this.addUserError = null;
-      
+
       try {
-        const response = await fetch('/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            username: this.newUser.username,
-            password: this.newUser.password,
-            is_admin: this.newUser.is_admin
-          })
+        // 使用api对象调用，确保使用正确的基础URL
+        await this.$store.dispatch('auth/createUser', {
+          username: this.newUser.username,
+          password: this.newUser.password,
+          is_admin: this.newUser.is_admin
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '创建用户失败');
-        }
-        
+
         // 刷新用户列表
         await this.fetchUsers();
-        
+
         // 关闭模态框并重置表单
         this.showAddUserModal = false;
         this.newUser = {
@@ -398,7 +358,7 @@ export default {
           password: '',
           is_admin: false
         };
-        
+
         this.showMessage('success', '用户创建成功');
       } catch (error) {
         this.addUserError = error.message || '创建用户失败';
@@ -406,7 +366,7 @@ export default {
         this.addUserLoading = false;
       }
     },
-    
+
     // 重置密码
     openResetPasswordModal(user) {
       this.selectedUser = user;
@@ -417,7 +377,7 @@ export default {
       this.resetPasswordError = null;
       this.showResetPasswordModal = true;
     },
-    
+
     async handleResetPassword() {
       if (!this.resetPasswordFormValid) {
         if (this.resetPasswordData.newPassword.length < 6) {
@@ -427,31 +387,21 @@ export default {
         }
         return;
       }
-      
+
       this.resetPasswordLoading = true;
       this.resetPasswordError = null;
-      
+
       try {
-        const response = await fetch(`/api/users/${this.selectedUser.id}/reset-password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            new_password: this.resetPasswordData.newPassword
-          })
+        // 使用api对象调用，确保使用正确的基础URL
+        await this.$store.dispatch('auth/resetUserPassword', {
+          userId: this.selectedUser.id,
+          newPassword: this.resetPasswordData.newPassword
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '重置密码失败');
-        }
-        
+
         // 关闭模态框
         this.showResetPasswordModal = false;
         this.selectedUser = null;
-        
+
         this.showMessage('success', '用户密码重置成功');
       } catch (error) {
         this.resetPasswordError = error.message || '重置密码失败';
@@ -459,38 +409,29 @@ export default {
         this.resetPasswordLoading = false;
       }
     },
-    
+
     // 删除用户
     openDeleteUserModal(user) {
       this.selectedUser = user;
       this.deleteUserError = null;
       this.showDeleteUserModal = true;
     },
-    
+
     async handleDeleteUser() {
       this.deleteUserLoading = true;
       this.deleteUserError = null;
-      
+
       try {
-        const response = await fetch(`/api/users/${this.selectedUser.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '删除用户失败');
-        }
-        
+        // 使用api对象调用，确保使用正确的基础URL
+        await this.$store.dispatch('auth/deleteUser', this.selectedUser.id);
+
         // 刷新用户列表
         await this.fetchUsers();
-        
+
         // 关闭模态框
         this.showDeleteUserModal = false;
         this.selectedUser = null;
-        
+
         this.showMessage('success', '用户删除成功');
       } catch (error) {
         this.deleteUserError = error.message || '删除用户失败';
@@ -498,27 +439,19 @@ export default {
         this.deleteUserLoading = false;
       }
     },
-    
+
     // 获取当前用户信息
     async fetchCurrentUser() {
       try {
-        const response = await fetch('/api/auth/user', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('获取用户信息失败');
+        // 使用api对象调用，确保使用正确的基础URL
+        const response = await this.$store.dispatch('auth/getCurrentUser');
+        if (response) {
+          this.currentUser = {
+            id: response.id,
+            username: response.username,
+            is_admin: response.isAdmin
+          };
         }
-        
-        const data = await response.json();
-        this.currentUser = {
-          id: data.id,
-          username: data.username,
-          is_admin: data.is_admin
-        };
       } catch (error) {
         console.error('获取当前用户信息失败:', error);
       }
@@ -809,4 +742,4 @@ export default {
   gap: 10px;
   margin-top: 30px;
 }
-</style> 
+</style>

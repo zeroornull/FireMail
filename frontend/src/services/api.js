@@ -6,11 +6,16 @@ const getBaseUrl = () => {
 
   // 优先使用全局配置的API_URL（由env-config.js设置）
   if (window.API_URL) {
-    console.log('使用全局配置的API_URL:', window.API_URL);
+    // 确保API_URL以/api结尾
+    let baseUrl = window.API_URL;
+    if (!baseUrl.endsWith('/api')) {
+      baseUrl = baseUrl + '/api';
+    }
+    console.log('使用全局配置的API_URL:', baseUrl);
     console.groupEnd();
-    return window.API_URL;
+    return baseUrl;
   }
-  
+
   // 回退方案：使用相对路径
   const url = '/api';
   console.log('使用相对路径API基础URL:', url);
@@ -51,7 +56,7 @@ api.interceptors.response.use(
   error => {
     if (error.response) {
       console.error('API响应错误:', error.response.status, error.response.data);
-      
+
       // 特殊处理401未授权错误
       if (error.response.status === 401) {
         console.log('用户未认证，跳转到登录页面');
@@ -62,7 +67,7 @@ api.interceptors.response.use(
           window.location.href = '/login';
         }
       }
-      
+
       // 特殊处理409冲突错误
       else if (error.response.status === 409) {
         console.log('资源冲突:', error.response.data);
@@ -72,7 +77,7 @@ api.interceptors.response.use(
       // 服务器未响应的处理
       const errorMessage = '无法连接到服务器，请检查后端服务是否启动';
       error.response = { data: { message: errorMessage, error: 'Failed to fetch' } };
-      
+
       // 创建自定义错误
       const fetchError = new Error(errorMessage);
       fetchError.name = 'fetchError';
@@ -106,19 +111,19 @@ const apiMethods = {
     return api.get('/config')
       .catch(error => {
         console.error('获取系统配置失败:', error);
-        
+
         // 如果是网络错误且未超过最大重试次数，则进行重试
         if (error.request && retryCount < maxRetries) {
           const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // 指数延迟，最大5秒
           console.log(`将在 ${retryDelay}ms 后重试获取系统配置`);
-          
+
           return new Promise(resolve => {
             setTimeout(() => {
               resolve(this.getConfig(retryCount + 1, maxRetries));
             }, retryDelay);
           });
         }
-        
+
         // 超过重试次数或其他错误，返回默认配置
         console.warn('无法获取系统配置，使用默认值（允许注册）');
         return Promise.resolve({
@@ -128,18 +133,18 @@ const apiMethods = {
         });
       });
   },
-  
+
   toggleRegistration: (allow) => {
     return api.post('/admin/config/registration', { allow });
   },
-  
+
   // 认证相关
   login: (username, password) => {
     console.log('调用登录API...', username);
-    
+
     // 增加对API_URL的检查
     console.log('当前API基础URL:', api.defaults.baseURL);
-    
+
     return api.post('/auth/login', { username, password })
       .then(response => {
         // 检查响应数据格式，防止HTML响应导致错误
@@ -151,18 +156,18 @@ const apiMethods = {
           error.responseData = response.data;
           return Promise.reject(error);
         }
-        
+
         // 验证响应中包含预期的token和用户数据
         if (!response.data.token) {
           console.error('登录响应缺少token:', response.data);
           return Promise.reject(new Error('登录失败：响应缺少token'));
         }
-        
+
         if (!response.data.user) {
           console.error('登录响应缺少user对象:', response.data);
           return Promise.reject(new Error('登录失败：响应缺少用户信息'));
         }
-        
+
         return response;
       })
       .catch(error => {
@@ -171,55 +176,55 @@ const apiMethods = {
           console.error('请求收到HTML而非JSON，尝试使用备用URL重试');
           // 这里可以尝试备用方式或显示更有用的错误信息
         }
-        
+
         // 重新抛出错误供上层处理
         throw error;
       });
   },
-  
+
   logout: () => {
     return api.post('/auth/logout');
   },
-  
+
   register: (username, password) => {
     console.log('发送注册请求:', { username, password });
     return api.post('/auth/register', { username, password });
   },
-  
+
   getCurrentUser: () => {
     return api.get('/auth/user');
   },
-  
+
   changePassword: (oldPassword, newPassword) => {
     return api.post('/auth/change-password', { old_password: oldPassword, new_password: newPassword });
   },
-  
+
   // 用户管理 (管理员)
   getAllUsers: () => {
     return api.get('/users');
   },
-  
+
   createUser: (userData) => {
     return api.post('/users', userData);
   },
-  
+
   deleteUser: (userId) => {
     return api.delete(`/users/${userId}`);
   },
-  
+
   resetUserPassword: (userId, newPassword) => {
     return api.post(`/users/${userId}/reset-password`, { new_password: newPassword });
   },
-  
+
   // 邮箱相关
   getAllEmails: () => {
     return api.get('/emails');
   },
-  
+
   getEmailById: (id) => {
     return api.get(`/emails/${id}`);
   },
-  
+
   addEmail: (email, password, clientId, refreshToken, mailType = 'outlook') => {
     return api.post('/emails', {
       email,
@@ -229,39 +234,39 @@ const apiMethods = {
       mail_type: mailType
     });
   },
-  
+
   deleteEmail: (id) => {
     return api.delete(`/emails/${id}`);
   },
-  
+
   batchDeleteEmails: (ids) => {
     return api.post('/emails/batch_delete', { email_ids: ids });
   },
-  
+
   checkEmail: (emailId) => {
     return api.post(`/emails/${emailId}/check`);
   },
-  
+
   batchCheckEmails: (emailIds) => {
     return api.post('/emails/batch_check', { email_ids: emailIds });
   },
-  
+
   getMailRecords: (emailId) => {
     return api.get(`/emails/${emailId}/mail_records`);
   },
-  
+
   getEmailPassword: (emailId) => {
     return api.get(`/emails/${emailId}/password`);
   },
-  
+
   importEmails: (data, mailType) => {
     return api.post('/emails/import', { data, mail_type: mailType });
   },
-  
+
   search: (query, searchIn = []) => {
     return api.post('/search', { query, search_in: searchIn });
   },
-  
+
   // 邮箱相关接口
   emails: {
     getAll: () => api.get('/emails').then(res => res.data),
@@ -284,7 +289,7 @@ const apiMethods = {
     },
     import: (data) => api.post('/emails/import', data)
   },
-  
+
   // 工具方法
   setAuthHeader,
   removeAuthHeader
@@ -296,4 +301,4 @@ if (token) {
   setAuthHeader(token);
 }
 
-export default apiMethods; 
+export default apiMethods;

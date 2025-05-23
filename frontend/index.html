@@ -9,9 +9,16 @@
     <!-- 注意: env-config.js文件可能不存在，这会导致API请求失败 -->
     <script>
       // 本地调试配置，防止env-config.js不存在的情况
-      window.API_URL = '/api';
-      window.WS_URL = '/ws';
-      console.log('使用本地调试配置: API_URL =', window.API_URL, 'WS_URL =', window.WS_URL);
+      // 使用完整URL直接连接后端服务
+      const hostname = window.location.hostname;
+      // 注意：不要在URL末尾添加/api，因为api.js中会自动添加
+      window.API_URL = `http://${hostname}:5000`;
+      window.WS_URL = `ws://${hostname}:8765`;
+
+      // 设置SameSite和Partitioned属性的Cookie策略
+      document.cookie = "CookieConsent=true; SameSite=None; Secure; Partitioned;";
+
+      console.log('使用直接连接配置: API_URL =', window.API_URL, 'WS_URL =', window.WS_URL);
     </script>
     <script src="/env-config.js"></script>
   </head>
@@ -19,4 +26,4 @@
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
-</html> 
+</html>

@@ -15,20 +15,20 @@
             </div>
           </div>
         </template>
-        
+
         <div class="toolbar flex gap-md mb-4">
-          <el-button 
-            type="danger" 
-            :disabled="!hasSelectedEmails" 
+          <el-button
+            type="danger"
+            :disabled="!hasSelectedEmails"
             @click="handleBatchDelete"
             :icon="Delete"
             class="hover-scale"
           >
             批量删除
           </el-button>
-          <el-button 
-            type="primary" 
-            :disabled="!hasSelectedEmails" 
+          <el-button
+            type="primary"
+            :disabled="!hasSelectedEmails"
             @click="handleBatchCheck"
             :icon="Download"
             class="hover-scale"
@@ -36,7 +36,7 @@
             批量收信
           </el-button>
         </div>
-        
+
         <el-table
           v-loading="loading"
           :data="emails"
@@ -47,16 +47,16 @@
           highlight-current-row
           class="email-table"
         >
-          <el-table-column 
-            type="selection" 
+          <el-table-column
+            type="selection"
             width="55"
-            :selectable="row => row" 
+            :selectable="row => row"
           />
           <el-table-column prop="email" label="邮箱地址" width="220" />
           <el-table-column prop="mail_type" label="邮箱类型" width="120">
             <template #default="scope">
-              <el-tag 
-                :type="getMailTypeColor(scope.row.mail_type || 'outlook')" 
+              <el-tag
+                :type="getMailTypeColor(scope.row.mail_type || 'outlook')"
                 effect="plain"
                 class="mail-type-tag"
               >
@@ -68,10 +68,10 @@
             <template #default="scope">
               <div class="password-field flex-between">
                 <span class="password-text">{{ scope.row.showPassword ? scope.row.password : '******' }}</span>
-                <el-button 
-                  type="primary" 
+                <el-button
+                  type="primary"
                   link
-                  :icon="scope.row.showPassword ? Hide : View" 
+                  :icon="scope.row.showPassword ? Hide : View"
                   @click="togglePasswordVisibility(scope.row)"
                   :loading="scope.row.passwordLoading"
                   class="password-toggle-btn"
@@ -116,34 +116,34 @@
           <el-table-column label="操作" fixed="right" width="360">
             <template #default="scope">
               <div class="action-buttons flex gap-sm">
-                <el-button 
-                  type="primary" 
-                  size="small" 
+                <el-button
+                  type="primary"
+                  size="small"
                   :disabled="isEmailProcessing(scope.row)"
                   @click="handleCheck(scope.row)"
                   class="action-btn"
                 >
                   {{ getEmailActionText(scope.row) }}
                 </el-button>
-                <el-button 
-                  type="success" 
-                  size="small" 
+                <el-button
+                  type="success"
+                  size="small"
                   @click="handleViewMails(scope.row)"
                   class="action-btn"
                 >
                   查看邮件
                 </el-button>
-                <el-button 
-                  type="danger" 
-                  size="small" 
+                <el-button
+                  type="danger"
+                  size="small"
                   @click="handleDelete(scope.row)"
                   class="action-btn"
                 >
                   删除
                 </el-button>
-                <el-button 
-                  type="warning" 
-                  size="small" 
+                <el-button
+                  type="warning"
+                  size="small"
                   @click="handleEdit(scope.row)"
                   class="action-btn"
                 >
@@ -154,7 +154,7 @@
           </el-table-column>
         </el-table>
       </el-card>
-      
+
       <!-- 添加邮箱对话框 -->
       <el-dialog
         v-model="addEmailDialogVisible"
@@ -175,11 +175,11 @@
             >
               <el-form-item label="邮箱类型" prop="mail_type">
                 <el-select v-model="addEmailForm.mail_type" placeholder="请选择邮箱类型" class="w-full">
-                  <el-option 
-                    v-for="(config, type) in mailTypes" 
+                  <el-option
+                    v-for="(config, type) in mailTypes"
                     :key="type"
-                    :label="config.name" 
-                    :value="type" 
+                    :label="config.name"
+                    :value="type"
                   />
                 </el-select>
               </el-form-item>
@@ -215,14 +215,14 @@
                 <el-form-item label="端口" prop="port">
                   <el-input-number v-model="addEmailForm.port" :min="1" :max="65535" />
                 </el-form-item>
-                
+
                 <el-form-item label="使用SSL" prop="use_ssl">
                   <el-switch v-model="addEmailForm.use_ssl" />
                 </el-form-item>
               </template>
             </el-form>
           </el-tab-pane>
-          
+
           <el-tab-pane label="批量添加" name="batch">
             <p class="import-help">请按照以下格式输入邮箱信息，每行一个：<br/>邮箱地址----密码----客户端ID----刷新令牌</p>
             <el-form :model="batchImport" label-width="120px" :rules="batchImportRules" ref="batchImportFormRef">
@@ -245,7 +245,7 @@
             </el-form>
           </el-tab-pane>
         </el-tabs>
-        
+
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="addEmailDialogVisible = false">取消</el-button>
@@ -255,7 +255,7 @@
           </span>
         </template>
       </el-dialog>
-      
+
       <!-- 邮件列表对话框 -->
       <el-dialog
         v-model="mailListDialogVisible"
@@ -269,7 +269,7 @@
           <h3 class="email-title">
             <span class="text-primary">{{ currentEmail.email }}</span> 的邮件
           </h3>
-          <el-button 
+          <el-button
             type="primary"
             size="small"
             @click="handleCheck(currentEmail)"
@@ -280,7 +280,7 @@
             刷新邮件
           </el-button>
         </div>
-        
+
         <el-table
           v-loading="loadingMails"
           :data="mailRecords"
@@ -290,7 +290,16 @@
           max-height="60vh"
           class="mail-list-table"
         >
-          <el-table-column prop="subject" label="主题" min-width="250" show-overflow-tooltip />
+          <el-table-column prop="subject" label="主题" min-width="250" show-overflow-tooltip>
+            <template #default="scope">
+              <div class="subject-cell">
+                <span>{{ scope.row.subject }}</span>
+                <el-tag v-if="scope.row.has_attachments" size="small" type="success" class="attachment-tag">
+                  <el-icon><Document /></el-icon> 附件
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column prop="sender" label="发件人" min-width="200" show-overflow-tooltip />
           <el-table-column prop="received_time" label="接收时间" width="180">
             <template #default="scope">
@@ -299,9 +308,9 @@
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="scope">
-              <el-button 
-                type="primary" 
-                size="small" 
+              <el-button
+                type="primary"
+                size="small"
                 @click="viewMailContent(scope.row)"
                 :icon="Document"
                 class="view-btn"
@@ -312,39 +321,25 @@
           </el-table-column>
         </el-table>
       </el-dialog>
-      
+
       <!-- 邮件内容查看对话框 -->
       <el-dialog
         v-model="mailContentDialogVisible"
-        title="邮件详情"
+        :title="selectedMail ? selectedMail.subject : '邮件详情'"
         width="80%"
         top="5vh"
         class="mail-content-dialog"
       >
         <div v-if="selectedMail" class="mail-detail">
-          <div class="mail-info">
-            <div class="info-item">
-              <span class="label">主题:</span>
-              <span>{{ selectedMail.subject }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">发件人:</span>
-              <span>{{ selectedMail.sender }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">接收时间:</span>
-              <span>{{ formatDate(selectedMail.received_time) }}</span>
-            </div>
-          </div>
-          
-          <el-divider />
-          
-          <div class="mail-content">
-            <pre class="mail-content-text">{{ truncateContent(selectedMail.content) }}</pre>
-          </div>
+          <!-- 使用EmailContentViewer组件 -->
+          <EmailContentViewer
+            :mail="selectedMail"
+            :attachments="selectedMail.attachments || []"
+            :loading-attachments="false"
+          />
         </div>
       </el-dialog>
-      
+
       <!-- 编辑邮箱对话框 -->
       <el-dialog
         v-model="editDialogVisible"
@@ -362,14 +357,14 @@
             <el-input v-model="editForm.email" />
           </el-form-item>
           <el-form-item label="密码" prop="password">
-            <el-input 
-              v-model="editForm.password" 
-              type="password" 
+            <el-input
+              v-model="editForm.password"
+              type="password"
               show-password
               @input="checkPasswordStrength"
             >
               <template #append>
-                <el-tooltip 
+                <el-tooltip
                   content="密码应包含大小写字母、数字和特殊字符,长度至少8位"
                   placement="top"
                 >
@@ -379,8 +374,8 @@
             </el-input>
             <div class="password-strength" v-if="editForm.password">
               <span>密码强度:</span>
-              <el-progress 
-                :percentage="passwordStrength" 
+              <el-progress
+                :percentage="passwordStrength"
                 :color="passwordStrengthColor"
                 :format="passwordStrengthText"
               />
@@ -401,8 +396,8 @@
               <p>QQ邮箱: <code>imap.qq.com</code> 端口: <code>993</code> SSL: 开启</p>
               <p>163邮箱: <code>imap.163.com</code> 端口: <code>993</code> SSL: 开启</p>
             </div>
-            <el-form-item 
-              label="服务器" 
+            <el-form-item
+              label="服务器"
               prop="server"
             >
               <el-input v-model="editForm.server">
@@ -413,13 +408,13 @@
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item 
-              label="端口" 
+            <el-form-item
+              label="端口"
               prop="port"
             >
-              <el-input-number 
-                v-model="editForm.port" 
-                :min="1" 
+              <el-input-number
+                v-model="editForm.port"
+                :min="1"
                 :max="65535"
                 controls-position="right"
               />
@@ -453,18 +448,22 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useEmailsStore } from '@/store/emails'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import { 
-  Delete, 
-  Refresh, 
-  Plus, 
-  Download, 
-  Document, 
+import {
+  Delete,
+  Refresh,
+  Plus,
+  Download,
+  Document,
   Message,
   View,
   Hide,
   InfoFilled
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import DOMPurify from 'dompurify'
+import EmailContentViewer from '@/components/EmailContentViewer.vue'
+import EmailAttachments from '@/components/EmailAttachments.vue'
+import EmailQuoteFormatter from '@/components/EmailQuoteFormatter.vue'
 
 const emailsStore = useEmailsStore()
 
@@ -539,14 +538,14 @@ const batchImportRules = {
           callback()
           return
         }
-        
+
         const lines = value.trim().split('\n')
         let hasError = false
-        
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim()
           if (!line) continue
-          
+
           // 根据不同邮箱类型进行不同的验证
           if (batchImport.mailType === 'outlook') {
             const parts = line.split('----')
@@ -555,13 +554,13 @@ const batchImportRules = {
               callback(new Error(`第 ${i + 1} 行格式错误，请使用"----"分隔邮箱、密码、客户端ID和RefreshToken`))
               break
             }
-            
+
             if (!parts[0] || !parts[1] || !parts[2] || !parts[3]) {
               hasError = true
               callback(new Error(`第 ${i + 1} 行有空白字段，所有字段都必须填写`))
               break
             }
-            
+
             // 简单的邮箱格式检查
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parts[0])) {
               hasError = true
@@ -570,7 +569,7 @@ const batchImportRules = {
             }
           }
         }
-        
+
         if (!hasError) {
           callback()
         }
@@ -667,7 +666,7 @@ const handleBatchDelete = () => {
 
   const count = emailsStore.selectedEmailsCount
   // 确保是数组并且创建副本
-  const emailIds = Array.isArray(emailsStore.selectedEmails) ? 
+  const emailIds = Array.isArray(emailsStore.selectedEmails) ?
     [...emailsStore.selectedEmails] : []
 
   if (emailIds.length === 0) {
@@ -699,7 +698,7 @@ const handleBatchDelete = () => {
 const handleCheck = async (row) => {
   try {
     const result = await emailsStore.checkEmail(row.id)
-    
+
     // 检查结果，确定是否显示正在处理中的消息
     if (result && result.status === 'processing') {
       ElMessage.warning(result.message || '邮箱正在处理中，请稍候...')
@@ -720,7 +719,7 @@ const handleBatchCheck = async () => {
 
   const count = emailsStore.selectedEmailsCount
   // 确保是数组并且创建副本
-  const emailIds = Array.isArray(emailsStore.selectedEmails) ? 
+  const emailIds = Array.isArray(emailsStore.selectedEmails) ?
     [...emailsStore.selectedEmails] : []
 
   if (emailIds.length === 0) {
@@ -757,7 +756,7 @@ const viewMailContent = (mail) => {
     ElMessage.warning('邮件数据不存在或格式错误');
     return;
   }
-  
+
   // 创建一个格式化后的副本，防止直接修改原始数据
   const formattedMail = {
     ...mail,
@@ -766,7 +765,7 @@ const viewMailContent = (mail) => {
     received_time: mail.received_time || new Date().toISOString(),
     content: mail.content || '(无内容)'
   };
-  
+
   selectedMail.value = formattedMail;
   mailContentDialogVisible.value = true;
 }
@@ -787,24 +786,24 @@ const handleAddOrImport = async () => {
 
 const handleAddEmail = async () => {
   if (!addEmailFormRef.value) return
-  
+
   try {
     // 表单验证
     await addEmailFormRef.value.validate()
-    
+
     addingEmail.value = true
     const loading = ElLoading.service({
       lock: true,
       text: '正在添加邮箱...',
       background: 'rgba(0, 0, 0, 0.7)'
     })
-    
+
     const formData = {
       email: addEmailForm.value.email,
       password: addEmailForm.value.password,
       mail_type: addEmailForm.value.mail_type
     }
-    
+
     if (addEmailForm.value.mail_type === 'outlook') {
       formData.client_id = addEmailForm.value.client_id
       formData.refresh_token = addEmailForm.value.refresh_token
@@ -813,11 +812,11 @@ const handleAddEmail = async () => {
       formData.port = addEmailForm.value.port
       formData.use_ssl = addEmailForm.value.use_ssl
     }
-    
+
     await emailsStore.addEmail(formData)
     addEmailDialogVisible.value = false
     ElMessage.success('添加邮箱成功')
-    
+
     // 刷新邮箱列表
     await refreshEmails()
   } catch (error) {
@@ -831,20 +830,20 @@ const handleAddEmail = async () => {
 
 const handleImport = async () => {
   if (!batchImportFormRef.value) return
-  
+
   try {
     await batchImportFormRef.value.validate()
-    
+
     importing.value = true
-    
+
     const importData = {
       data: batchImport.data.trim(),
       mail_type: batchImport.mailType
     }
-    
+
     await emailsStore.importEmails(importData)
     ElMessage.info('正在处理导入请求，请稍候...')
-    
+
     // 延迟刷新列表
     setTimeout(async () => {
       await refreshEmails()
@@ -911,19 +910,115 @@ const togglePasswordVisibility = async (row) => {
       row.passwordLoading = false;
     }
   }
-  
+
   // 显示密码
   row.showPassword = true;
 }
 
+// 检查邮件内容是否为HTML格式
+const isHtmlContent = (mail) => {
+  if (!mail || !mail.content) return false;
+
+  // 兼容新旧格式
+  if (typeof mail.content === 'object') {
+    return mail.content.has_html === true || mail.content.content_type === 'text/html';
+  }
+
+  // 旧格式，检查内容是否包含HTML标签
+  const content = String(mail.content);
+  return content.includes('<html') || content.includes('<body') ||
+         content.includes('<div') || content.includes('<p>') ||
+         content.includes('<table') || content.includes('<img');
+}
+
+// 获取邮件内容
+const getMailContent = (mail) => {
+  if (!mail) return '';
+
+  // 兼容新旧格式
+  if (typeof mail.content === 'object' && mail.content !== null) {
+    return mail.content.content || '';
+  }
+
+  return mail.content || '';
+}
+
+// 截断内容
 const truncateContent = (content) => {
   if (!content) return content;
-  
+
   const maxLength = 1000; // 设置最大长度
   if (content.length > maxLength) {
     return content.slice(0, maxLength) + '...';
   }
   return content;
+}
+
+// 净化HTML内容，防止XSS攻击
+const sanitizeHtml = (html) => {
+  if (!html) return '';
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'a', 'b', 'br', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'i', 'img', 'li', 'ol', 'p', 'span', 'strong', 'table', 'tbody',
+      'td', 'th', 'thead', 'tr', 'u', 'ul', 'font', 'blockquote', 'hr',
+      'pre', 'code', 'col', 'colgroup', 'section', 'header', 'footer',
+      'nav', 'article', 'aside', 'figure', 'figcaption', 'address', 'main',
+      'caption', 'center', 'cite', 'dd', 'dl', 'dt', 'mark', 's', 'small',
+      'strike', 'sub', 'sup'
+    ],
+    ALLOWED_ATTR: [
+      'href', 'target', 'src', 'alt', 'style', 'class', 'id', 'width', 'height',
+      'align', 'valign', 'bgcolor', 'border', 'cellpadding', 'cellspacing',
+      'color', 'colspan', 'dir', 'face', 'frame', 'frameborder', 'headers',
+      'hspace', 'lang', 'marginheight', 'marginwidth', 'nowrap', 'rel',
+      'rev', 'rowspan', 'scrolling', 'shape', 'span', 'summary', 'title',
+      'usemap', 'vspace', 'start', 'type', 'value', 'size', 'data-*'
+    ]
+  });
+}
+
+// 下载附件
+const downloadAttachment = (attachmentId, filename) => {
+  const token = localStorage.getItem('token')
+  const downloadUrl = `/api/attachments/${attachmentId}/download`
+
+  // 创建一个隐藏的a标签用于下载
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.setAttribute('download', filename)
+  link.setAttribute('target', '_blank')
+
+  // 添加认证头
+  fetch(downloadUrl, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(response => response.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob)
+    link.href = url
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  })
+  .catch(error => {
+    console.error('下载附件失败:', error)
+    ElMessage.error('下载附件失败')
+  })
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 // 添加编辑按钮的处理函数
@@ -971,7 +1066,7 @@ const checkPasswordStrength = (password) => {
     passwordStrength.value = 0
     return
   }
-  
+
   let strength = 0
   // 检查长度
   if (password.length >= 8) strength += 20
@@ -983,7 +1078,7 @@ const checkPasswordStrength = (password) => {
   if (/[A-Z]/.test(password)) strength += 20
   // 检查是否包含特殊字符
   if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 20
-  
+
   passwordStrength.value = strength
 }
 
@@ -998,7 +1093,7 @@ const editRules = {
     { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
   ],
   server: [
-    { required: true, message: 'IMAP服务器地址不能为空', trigger: 'blur', 
+    { required: true, message: 'IMAP服务器地址不能为空', trigger: 'blur',
       // 仅当类型为imap时验证
       validator: (rule, value, callback) => {
         if (editForm.value.mail_type === 'imap' && !value) {
@@ -1010,10 +1105,10 @@ const editRules = {
     }
   ],
   port: [
-    { 
-      required: true, 
-      message: '端口号不能为空', 
-      trigger: 'blur', 
+    {
+      required: true,
+      message: '端口号不能为空',
+      trigger: 'blur',
       // 仅当类型为imap时验证
       validator: (rule, value, callback) => {
         if (editForm.value.mail_type === 'imap' && (!value || isNaN(value))) {
@@ -1025,9 +1120,9 @@ const editRules = {
     }
   ],
   client_id: [
-    { 
-      required: true, 
-      message: 'Client ID不能为空', 
+    {
+      required: true,
+      message: 'Client ID不能为空',
       trigger: 'blur',
       // 仅当类型为outlook时验证
       validator: (rule, value, callback) => {
@@ -1040,9 +1135,9 @@ const editRules = {
     }
   ],
   refresh_token: [
-    { 
-      required: true, 
-      message: 'Refresh Token不能为空', 
+    {
+      required: true,
+      message: 'Refresh Token不能为空',
       trigger: 'blur',
       // 仅当类型为outlook时验证
       validator: (rule, value, callback) => {
@@ -1074,30 +1169,30 @@ const resetEditForm = () => {
 // 提交编辑表单
 const submitEditForm = async () => {
   if (!editFormRef.value) return
-  
+
   try {
     await editFormRef.value.validate()
-    
+
     // 准备提交的数据
     const formData = { ...editForm.value }
-    
+
     // 如果密码仍然是默认的星号，则不发送密码更新
     if (formData.password === '******') {
       delete formData.password
     }
-    
+
     const loading = ElLoading.service({
       lock: true,
       text: '正在更新邮箱...',
       background: 'rgba(0, 0, 0, 0.7)'
     })
-    
+
     await emailsStore.updateEmail(formData.id, formData)
     editDialogVisible.value = false
-    
+
     // 刷新邮箱列表
     await refreshEmails()
-    
+
     ElMessage.success('邮箱更新成功')
   } catch (error) {
     console.error('更新邮箱失败:', error)
@@ -1226,6 +1321,18 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.subject-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .mail-detail {
   display: flex;
   flex-direction: column;
@@ -1252,6 +1359,25 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+.mail-attachments {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
+  border-left: 3px solid #67c23a;
+}
+
+.attachments-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.attachment-item {
+  margin-bottom: 5px;
+}
+
 .mail-content-text {
   white-space: pre-wrap;
   word-break: break-word;
@@ -1263,6 +1389,36 @@ onMounted(() => {
   padding: 10px;
   background-color: var(--bg-light);
   border-radius: var(--border-radius);
+}
+
+.html-content {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 10px;
+  background-color: var(--bg-light);
+  border-radius: var(--border-radius);
+  line-height: 1.5;
+}
+
+.html-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.html-content a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.html-content table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.html-content th,
+.html-content td {
+  border: 1px solid #ddd;
+  padding: 8px;
 }
 
 .add-email-form {
@@ -1336,4 +1492,4 @@ onMounted(() => {
 .hover-scale:hover:not(:disabled) {
   transform: scale(1.05);
 }
-</style> 
+</style>

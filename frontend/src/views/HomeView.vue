@@ -15,7 +15,7 @@
         <div class="hero-shape shape-3"></div>
       </div>
     </div>
-    
+
     <div class="features-section" ref="featuresSection">
       <h2 class="section-title">功能特点</h2>
       <div class="features-grid">
@@ -28,7 +28,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="stats-section">
       <h2 class="section-title">效率至上</h2>
       <div class="stats-grid">
@@ -38,7 +38,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="quick-start-section">
       <h2 class="section-title">快速开始</h2>
       <div class="steps-container">
@@ -51,7 +51,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="cta-section">
       <div class="cta-content">
         <h2>开始使用花火邮箱助手</h2>
@@ -65,7 +65,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Briefcase, Management, Connection, Cpu, Search, Document, Alarm, Setting } from '@element-plus/icons-vue'
+import { Briefcase, Management, Connection, Cpu, Search, Document, AlarmClock, Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const featuresSection = ref(null)
@@ -482,30 +482,30 @@ const scrollToFeatures = () => {
   .hero-title {
     font-size: 2.5rem;
   }
-  
+
   .hero-subtitle {
     font-size: 1.2rem;
     margin-bottom: 30px;
   }
-  
+
   .hero-buttons {
     flex-direction: column;
     gap: 15px;
     align-items: center;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .step-item {
     padding: 20px;
   }
-  
+
   .cta-content h2 {
     font-size: 1.8rem;
   }
@@ -515,21 +515,21 @@ const scrollToFeatures = () => {
   .hero-section {
     padding: 50px 20px;
   }
-  
+
   .hero-title {
     font-size: 2rem;
   }
-  
+
   .section-title {
     font-size: 1.8rem;
   }
-  
+
   .feature-card {
     padding: 20px;
   }
-  
+
   .stat-number {
     font-size: 2.5rem;
   }
 }
-</style> 
+</style>

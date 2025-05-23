@@ -14,6 +14,7 @@ from .common import (
 from .outlook import OutlookMailHandler
 from .imap import IMAPMailHandler
 from .mail_processor import MailProcessor, EmailBatchProcessor
+from .file_parser import EmailFileParser
 
 # 保持原有API兼容性
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     'IMAPMailHandler',
     'MailProcessor',
     'EmailBatchProcessor',
-] 
+    'EmailFileParser',
+]

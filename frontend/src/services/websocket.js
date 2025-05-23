@@ -1,20 +1,20 @@
 // 添加WebSocket消息类型的常量
 const MessageTypes = {
   // 认证相关
-  AUTHENTICATE: 'authenticate', 
+  AUTHENTICATE: 'authenticate',
   AUTH_RESULT: 'auth_result',
   CONNECTION_ESTABLISHED: 'connection_established',
-  
+
   // 邮箱操作
   GET_ALL_EMAILS: 'get_all_emails',    // 获取所有邮箱
   CHECK_EMAILS: 'check_emails',         // 批量检查邮箱
   DELETE_EMAILS: 'delete_emails',       // 批量删除邮箱
   ADD_EMAIL: 'add_email',               // 添加单个邮箱
   GET_MAIL_RECORDS: 'get_mail_records', // 获取邮件记录
-  
+
   // 批量导入
   IMPORT_EMAILS: 'import_emails',       // 批量导入邮箱
-  
+
   // 响应消息
   EMAILS_LIST: 'emails_list',          // 邮箱列表
   CHECK_PROGRESS: 'check_progress',    // 检查进度
@@ -22,7 +22,7 @@ const MessageTypes = {
   EMAILS_DELETED: 'emails_deleted',    // 邮箱已删除
   EMAIL_ADDED: 'email_added',          // 邮箱已添加
   MAIL_RECORDS: 'mail_records',        // 邮件记录
-  
+
   // 通知消息
   INFO: 'info',                        // 信息通知
   SUCCESS: 'success',                  // 成功通知
@@ -43,23 +43,40 @@ class WebSocketService {
     this.connectHandlers = [];
     this.disconnectHandlers = [];
     this.authSuccessHandlers = []; // 认证成功处理器
-    
+
     // 心跳检测
     this.heartbeatInterval = null;
     this.heartbeatTimeout = null;
     this.lastHeartbeatReceived = 0;
-    
+
     this.url = this.getWebSocketUrl();
     console.log(`WebSocket服务URL: ${this.url}`);
   }
 
   getWebSocketUrl() {
-    // 使用相对路径构建WebSocket URL
+    // 优先使用环境配置中的WebSocket URL
+    if (window.WS_URL && typeof window.WS_URL === 'string') {
+      // 检查是否是完整URL（包含协议）
+      if (window.WS_URL.startsWith('ws://') || window.WS_URL.startsWith('wss://')) {
+        console.log('使用配置的WebSocket URL:', window.WS_URL);
+        return window.WS_URL;
+      }
+
+      // 如果只是路径，添加协议和主机
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const hostname = window.location.hostname;
+      const url = `${protocol}//${hostname}${window.WS_URL}`;
+      console.log('使用配置的WebSocket路径:', url);
+      return url;
+    }
+
+    // 回退到直接连接后端WebSocket服务器
+    // 在生产环境中，这应该由nginx等代理处理
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    const port = window.location.port ? ':' + window.location.port : '';
-    const url = `${protocol}//${hostname}${port}/ws`;
-    console.log('使用相对路径WebSocket URL:', url);
+    const wsPort = '8765'; // WebSocket服务器端口
+    const url = `${protocol}//${hostname}:${wsPort}`;
+    console.log('使用直接WebSocket URL:', url);
     return url;
   }
 
@@ -72,7 +89,7 @@ class WebSocketService {
 
     // 先清除之前的心跳检测
     this.clearHeartbeat();
-    
+
     // 重置认证状态
     this.isAuthenticated = false;
     this.authAttempted = false;
@@ -103,12 +120,12 @@ class WebSocketService {
         clearTimeout(connectionTimeout);
         this.isConnected = true;
         this.reconnectAttempts = 0;
-        
+
         // 连接成功后立即发送认证消息
         setTimeout(() => {
           this.sendAuthMessage(token);
         }, 500); // 延迟500ms，确保连接完全建立
-        
+
         // 启动心跳检测
         this.startHeartbeat();
       };
@@ -116,13 +133,13 @@ class WebSocketService {
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          
+
           // 处理心跳响应
           if (message.type === 'heartbeat_response') {
             this.handleHeartbeatResponse();
             return;
           }
-          
+
           this.handleMessage(message);
         } catch (error) {
           console.error('WebSocket消息解析失败:', error);
@@ -135,7 +152,7 @@ class WebSocketService {
         this.isConnected = false;
         this.clearHeartbeat();
         this.notifyDisconnect();
-        
+
         // 自动重新连接，除非是正常关闭
         if (event.code !== 1000) {
           this.scheduleReconnect();
@@ -154,7 +171,7 @@ class WebSocketService {
 
   sendAuthMessage(token) {
     if (!this.isConnected) return;
-    
+
     try {
       // 发送认证消息
       const authMessage = JSON.stringify({
@@ -163,7 +180,7 @@ class WebSocketService {
       });
       this.socket.send(authMessage);
       console.log('已发送WebSocket认证消息:', MessageTypes.AUTHENTICATE);
-      
+
       // 记录认证尝试
       this.authAttempted = true;
     } catch (error) {
@@ -198,7 +215,7 @@ class WebSocketService {
     // 指数退避重连，但最长不超过30秒
     const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), 30000);
     console.log(`将在${delay}毫秒后尝试重新连接 (尝试 ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
-    
+
     this.reconnectTimeoutId = setTimeout(() => {
       this.reconnectAttempts++;
       this.connect();
@@ -219,16 +236,16 @@ class WebSocketService {
     // 如果不是认证消息且未通过认证，先记录错误
     if (type !== MessageTypes.AUTHENTICATE && !this.isAuthenticated) {
       console.warn(`WebSocket未认证，不能发送[${type}]消息，将尝试重新认证`);
-      
+
       // 尝试重新认证
       const token = localStorage.getItem('token');
       if (token) {
         setTimeout(() => this.sendAuthMessage(token), 500);
-        
+
         // 保存请求，认证后可能需要重发
         this.pendingRequests = this.pendingRequests || [];
         this.pendingRequests.push({type, data});
-        
+
         // 设置超时重发
         setTimeout(() => {
           if (this.isAuthenticated && this.isConnected) {
@@ -237,13 +254,13 @@ class WebSocketService {
           }
         }, 2000);
       }
-      
+
       return false;
     }
 
     return this.doSend(type, data);
   }
-  
+
   // 实际发送消息的方法
   doSend(type, data = {}) {
     try {
@@ -269,7 +286,7 @@ class WebSocketService {
   handleMessage(message) {
     const type = message.type || 'unknown';
     console.log(`接收到WebSocket消息: ${type}`, message);
-    
+
     // 处理认证结果消息
     if (type === MessageTypes.AUTH_RESULT) {
       if (message.success) {
@@ -284,11 +301,11 @@ class WebSocketService {
         // 处理之前因未认证而挂起的请求
         if (this.pendingRequests && this.pendingRequests.length > 0) {
           console.log(`处理${this.pendingRequests.length}个挂起的请求`);
-          
+
           // 克隆一份，避免在处理过程中被修改
           const requests = [...this.pendingRequests];
           this.pendingRequests = [];
-          
+
           // 延迟处理，确保认证状态已完全更新
           setTimeout(() => {
             requests.forEach(req => {
@@ -312,7 +329,7 @@ class WebSocketService {
       }
       return;
     }
-    
+
     // 处理错误消息，检查是否是认证错误
     if (type === MessageTypes.ERROR && message.message === '请先进行认证') {
       console.warn('收到未认证错误，检查认证状态');
@@ -331,13 +348,13 @@ class WebSocketService {
       }
       return;
     }
-    
+
     // 处理连接建立消息
     if (type === MessageTypes.CONNECTION_ESTABLISHED) {
       this.notifyConnect();
       return;
     }
-    
+
     // 调用对应类型的处理函数
     const handlers = this.messageHandlers[type] || [];
     handlers.forEach(handler => {
@@ -358,7 +375,7 @@ class WebSocketService {
 
   offMessage(type, handler) {
     if (!this.messageHandlers[type]) return;
-    
+
     if (handler) {
       // 移除特定处理函数
       this.messageHandlers[type] = this.messageHandlers[type].filter(h => h !== handler);
@@ -447,16 +464,16 @@ class WebSocketService {
         console.error('批量导入数据格式错误: 缺少data字段');
         return false;
       }
-      
+
       // 确保有mailType字段，默认为outlook
       const payload = {
         data: data.data,
         mail_type: data.mailType || 'outlook'
       };
-      
+
       return this.send(MessageTypes.IMPORT_EMAILS, payload);
     }
-    
+
     console.error('批量导入数据格式错误:', data);
     return false;
   }
@@ -464,20 +481,23 @@ class WebSocketService {
   // 心跳检测
   startHeartbeat() {
     this.lastHeartbeatReceived = Date.now();
-    
+
     // 定期发送心跳
     this.heartbeatInterval = setInterval(() => {
       if (this.isConnected) {
         try {
           this.socket.send(JSON.stringify({ type: 'heartbeat' }));
-          console.log('已发送心跳消息');
-          
+          // 减少日志输出，只在调试模式下输出
+          if (localStorage.getItem('debug_mode') === 'true') {
+            console.log('已发送心跳消息');
+          }
+
           // 设置心跳超时检测
           this.heartbeatTimeout = setTimeout(() => {
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
             // 如果超过30秒未收到心跳响应，认为连接已断开
             if (timeSinceLastHeartbeat > 30000) {
-              console.error('心跳检测超时，重新连接WebSocket');
+              console.warn('心跳检测超时，重新连接WebSocket');
               this.disconnect();
               this.connect();
             }
@@ -491,9 +511,12 @@ class WebSocketService {
       }
     }, 20000); // 每20秒发送一次心跳
   }
-  
+
   handleHeartbeatResponse() {
-    console.log('收到心跳响应');
+    // 减少日志输出，只在调试模式下输出
+    if (localStorage.getItem('debug_mode') === 'true') {
+      console.log('收到心跳响应');
+    }
     this.lastHeartbeatReceived = Date.now();
     // 清除当前的心跳超时检测
     if (this.heartbeatTimeout) {
@@ -501,14 +524,14 @@ class WebSocketService {
       this.heartbeatTimeout = null;
     }
   }
-  
+
   clearHeartbeat() {
     // 清除心跳检测
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-    
+
     if (this.heartbeatTimeout) {
       clearTimeout(this.heartbeatTimeout);
       this.heartbeatTimeout = null;
@@ -519,12 +542,12 @@ class WebSocketService {
   resetState() {
     // 清除心跳检测
     this.clearHeartbeat();
-    
+
     // 重置连接和认证状态
     this.isConnected = false;
     this.isAuthenticated = false;
     this.authAttempted = false;
-    
+
     // 清除重连计时器
     if (this.reconnectTimeoutId) {
       clearTimeout(this.reconnectTimeoutId);
@@ -537,7 +560,7 @@ class WebSocketService {
     console.log('重新连接WebSocket...');
     // 先断开现有连接并重置状态
     this.disconnect();
-    
+
     // 延迟一段时间后重新连接
     setTimeout(() => {
       // 连接前检查token
@@ -555,7 +578,7 @@ class WebSocketService {
   disconnect() {
     // 先重置状态
     this.resetState();
-    
+
     // 关闭WebSocket连接
     if (this.socket) {
       try {
@@ -595,4 +618,4 @@ class WebSocketService {
 }
 
 // 单例模式
-export default new WebSocketService(); 
+export default new WebSocketService();

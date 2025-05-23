@@ -15,13 +15,15 @@ echo "花火邮箱助手正在启动..."
 echo "后端API地址: http://$HOST:$FLASK_PORT"
 echo "WebSocket服务地址: ws://$HOST:$WS_PORT"
 echo "前端服务地址: http://$HOST:80"
+echo "前端开发端口: $FRONTEND_PORT"
 echo "注册功能: 默认开启，第一个注册的用户为管理员，之后管理员可在系统设置中控制"
 
 # 创建前端环境变量文件
 mkdir -p /app/frontend/dist
 cat > /app/frontend/dist/env-config.js << EOF
 // 环境配置
-window.API_URL = '/api';  // 使用相对路径
+// 注意：不要在API_URL末尾添加/api，因为api.js中会自动添加
+window.API_URL = '';  // 使用相对路径，api.js会自动添加/api
 window.WS_URL = '/ws';    // 使用相对路径
 console.log('env-config.js已加载，API_URL:', window.API_URL, 'WS_URL:', window.WS_URL);
 EOF

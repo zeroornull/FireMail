@@ -8,7 +8,7 @@
               <h1>花火邮箱助手</h1>
             </router-link>
           </div>
-          
+
           <div class="header-right">
             <!-- 用户未登录状态 -->
             <template v-if="!isAuthenticated">
@@ -19,7 +19,7 @@
                 <el-button type="primary">注册</el-button>
               </router-link>
             </template>
-            
+
             <!-- 用户已登录状态 -->
             <template v-else>
               <el-dropdown @command="handleUserCommand">
@@ -36,7 +36,7 @@
                 </template>
               </el-dropdown>
             </template>
-            
+
             <div class="connection-status">
               <el-tag :type="websocketConnected ? 'success' : 'danger'" effect="dark">
                 {{ websocketConnected ? '已连接' : '未连接' }}
@@ -44,12 +44,12 @@
             </div>
           </div>
         </el-header>
-        
+
         <!-- 导航菜单 -->
-        <el-menu 
+        <el-menu
           v-if="isAuthenticated"
-          mode="horizontal" 
-          :router="true" 
+          mode="horizontal"
+          :router="true"
           :default-active="$route.path"
           class="app-nav"
         >
@@ -69,7 +69,7 @@
             <el-icon><InfoFilled /></el-icon>关于
           </el-menu-item>
         </el-menu>
-        
+
         <el-main>
           <router-view v-slot="{ Component }" v-if="!initializing">
             <transition name="fade" mode="out-in">
@@ -80,14 +80,28 @@
             <el-skeleton :rows="6" animated />
           </div>
         </el-main>
-        
+
         <el-footer class="app-footer">
           花火邮箱助手 &copy; 2025
         </el-footer>
       </el-container>
-      
+
       <!-- 通知组件 -->
       <Notifications />
+
+      <!-- 调试工具 -->
+      <div v-if="showDebugTools" class="debug-tools-container">
+        <DebugTools />
+      </div>
+
+      <!-- 调试工具开关 -->
+      <div class="debug-tools-toggle" @click="toggleDebugTools">
+        <el-tooltip content="调试工具" placement="left">
+          <el-button type="primary" circle size="small">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+      </div>
     </div>
   </el-config-provider>
 </template>
@@ -96,16 +110,18 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStore } from 'vuex'
 import { ElConfigProvider, ElMessage } from 'element-plus'
-import { ArrowDown, Search, Message, HomeFilled, InfoFilled, UserFilled } from '@element-plus/icons-vue'
+import { ArrowDown, Search, Message, HomeFilled, InfoFilled, UserFilled, Setting } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import websocket from '@/services/websocket'
 import Notifications from './components/Notifications.vue'
+import DebugTools from './components/DebugTools.vue'
 
 // 初始化状态
 const initializing = ref(true)
 const isConnected = ref(false)
 const isScrolled = ref(false)
+const showDebugTools = ref(false)
 
 // 使用Vuex来管理状态
 const store = useStore()
@@ -126,10 +142,17 @@ const handleScroll = () => {
   isScrolled.value = window.scrollY > 10
 }
 
+// 切换调试工具显示
+const toggleDebugTools = () => {
+  showDebugTools.value = !showDebugTools.value
+  // 保存状态到localStorage
+  localStorage.setItem('show_debug_tools', showDebugTools.value ? 'true' : 'false')
+}
+
 // 初始化认证状态
 const initializeAuth = async () => {
   initializing.value = true
-  
+
   if (isAuthenticated.value) {
     try {
       // 强制获取当前用户最新信息
@@ -142,7 +165,7 @@ const initializeAuth = async () => {
   } else {
     console.log('用户未认证，跳过获取用户信息')
   }
-  
+
   initializing.value = false
 }
 
@@ -206,28 +229,36 @@ watch(isAuthenticated, (newValue) => {
 onMounted(async () => {
   // 初始化认证状态
   await initializeAuth()
-  
+
   // 连接处理
   websocket.onConnect(() => {
     isConnected.value = true
   })
-  
+
   // 断开连接处理
   websocket.onDisconnect(() => {
     isConnected.value = false
   })
-  
+
   // 注册WebSocket事件处理器
   websocket.onConnect(handleConnect)
   websocket.onDisconnect(handleDisconnect)
-  
+
   // 确保WebSocket连接（仅在用户已认证时）
   if (isAuthenticated.value && !websocket.isConnected) {
     websocket.connect()
   }
-  
+
   // 添加滚动监听
   window.addEventListener('scroll', handleScroll)
+
+  // 初始化调试工具状态
+  showDebugTools.value = localStorage.getItem('show_debug_tools') === 'true'
+
+  // 设置Cookie策略
+  if (!document.cookie.includes('CookieConsent')) {
+    document.cookie = "CookieConsent=true; SameSite=None; Secure; Partitioned; Path=/;";
+  }
 })
 
 // 组件卸载时断开WebSocket连接
@@ -235,7 +266,7 @@ onUnmounted(() => {
   websocket.offConnect(handleConnect)
   websocket.offDisconnect(handleDisconnect)
   websocket.disconnect()
-  
+
   // 移除滚动监听
   window.removeEventListener('scroll', handleScroll)
 })
@@ -457,15 +488,15 @@ body {
   .header-right {
     gap: 8px;
   }
-  
+
   .app-header h1 {
     font-size: 18px;
   }
-  
+
   .connection-status {
     margin-left: 8px;
   }
-  
+
   .app-nav .el-menu-item {
     padding: 0 10px;
   }
@@ -476,20 +507,52 @@ body {
     flex-direction: column;
     align-items: flex-end;
   }
-  
+
   .connection-status {
     margin-top: 10px;
     margin-left: 0;
   }
-  
+
   .app-nav .el-menu-item {
     padding: 0 8px;
     font-size: 14px;
   }
-  
+
   .app-nav .el-icon {
     margin-right: 2px;
     font-size: 14px;
   }
+
+  .debug-tools-container {
+    width: 90vw;
+    right: 5vw;
+  }
+}
+
+/* 调试工具样式 */
+.debug-tools-container {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  width: 400px;
+  max-width: 90vw;
+  z-index: 2000;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  transition: all var(--transition-normal);
+}
+
+.debug-tools-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2001;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.debug-tools-toggle:hover {
+  transform: rotate(45deg);
 }
 </style>
