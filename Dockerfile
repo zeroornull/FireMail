@@ -40,9 +40,16 @@ ENV HOST=0.0.0.0 \
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
-    caddy \
+    curl \
     bash \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Caddy using binary download
+RUN curl -L "https://github.com/caddyserver/caddy/releases/download/v2.7.6/caddy_2.7.6_linux_amd64.tar.gz" -o caddy.tar.gz \
+    && tar -xzf caddy.tar.gz \
+    && mv caddy /usr/local/bin/ \
+    && chmod +x /usr/local/bin/caddy \
+    && rm caddy.tar.gz
 
 # Copy Python packages from python-deps stage
 COPY --from=python-deps /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
