@@ -5,16 +5,10 @@ Outlook邮件处理模块
 import imaplib
 import email
 import requests
-from datetime import datetime
-import threading
-import socket
 import time
 
 from .common import (
     decode_mime_words,
-    strip_html,
-    safe_decode,
-    remove_extra_blank_lines,
     normalize_check_time,
     format_date_for_imap_search,
 )
@@ -23,26 +17,156 @@ from .logger import logger
 class OutlookMailHandler:
     """Outlook邮箱处理类"""
 
+    # Outlook常用文件夹映射
+    DEFAULT_FOLDERS = {
+        'INBOX': ['inbox', 'Inbox', 'INBOX'],
+        'SENT': ['sentitems', 'Sent Items', 'Sent', '已发送'],
+        'DRAFTS': ['drafts', 'Drafts', '草稿箱'],
+        'TRASH': ['deleteditems', 'Deleted Items', 'Trash', '已删除'],
+        'SPAM': ['junkemail', 'Junk E-mail', 'Spam', '垃圾邮件'],
+        'ARCHIVE': ['archive', 'Archive', '归档']
+    }
+
+    def __init__(self, email_address, access_token):
+        """初始化Outlook处理器"""
+        self.email_address = email_address
+        self.access_token = access_token
+        self.mail = None
+        self.error = None
+
+    def connect(self):
+        """连接到Outlook服务器"""
+        try:
+            self.mail = imaplib.IMAP4_SSL('outlook.live.com')
+            auth_string = OutlookMailHandler.generate_auth_string(self.email_address, self.access_token)
+            self.mail.authenticate('XOAUTH2', lambda x: auth_string)
+            return True
+        except Exception as e:
+            self.error = str(e)
+            logger.error(f"Outlook连接失败: {e}")
+            return False
+
+    def get_folders(self):
+        """获取文件夹列表"""
+        if not self.mail:
+            return []
+
+        try:
+            _, folders = self.mail.list()
+            folder_list = []
+
+            for folder in folders:
+                if isinstance(folder, bytes):
+                    folder = folder.decode('utf-8', errors='ignore')
+
+                # 解析文件夹名称
+                parts = folder.split('"')
+                if len(parts) >= 3:
+                    folder_name = parts[-2]
+                else:
+                    folder_name = folder.split()[-1]
+
+                if folder_name and folder_name not in ['.', '..']:
+                    folder_list.append(folder_name)
+
+            # 确保常用文件夹在列表中
+            default_folders = ['inbox', 'sentitems', 'drafts', 'deleteditems', 'junkemail']
+            for df in default_folders:
+                if df not in folder_list:
+                    folder_list.append(df)
+
+            return sorted(folder_list)
+        except Exception as e:
+            logger.error(f"获取Outlook文件夹列表失败: {e}")
+            return ['inbox']
+
+    def get_messages(self, folder="inbox", limit=100):
+        """获取指定文件夹的邮件"""
+        if not self.mail:
+            return []
+
+        try:
+            self.mail.select(folder)
+            _, messages = self.mail.search(None, 'ALL')
+            message_numbers = messages[0].split()
+
+            # 限制数量并倒序（最新的在前）
+            message_numbers = message_numbers[-limit:] if len(message_numbers) > limit else message_numbers
+            message_numbers.reverse()
+
+            mail_list = []
+            for num in message_numbers:
+                try:
+                    _, msg_data = self.mail.fetch(num, '(RFC822)')
+                    email_body = msg_data[0][1]
+                    msg = email.message_from_bytes(email_body)
+
+                    # 简化的邮件解析
+                    subject = decode_mime_words(msg.get('Subject', ''))
+                    sender = decode_mime_words(msg.get('From', ''))
+                    received_time = email.utils.parsedate_to_datetime(msg.get('Date', ''))
+
+                    # 获取邮件内容
+                    content = ""
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            content_type = part.get_content_type()
+                            if content_type in ['text/plain', 'text/html']:
+                                try:
+                                    part_content = part.get_payload(decode=True).decode()
+                                    content += part_content
+                                except:
+                                    pass
+                    else:
+                        try:
+                            content = msg.get_payload(decode=True).decode()
+                        except:
+                            content = str(msg.get_payload())
+
+                    mail_list.append({
+                        'subject': subject,
+                        'sender': sender,
+                        'received_time': received_time,
+                        'content': content,
+                        'folder': folder
+                    })
+                except Exception as e:
+                    logger.warning(f"解析Outlook邮件失败: {e}")
+                    continue
+
+            return mail_list
+        except Exception as e:
+            logger.error(f"获取Outlook邮件失败: {e}")
+            return []
+
+    def close(self):
+        """关闭连接"""
+        if self.mail:
+            try:
+                self.mail.logout()
+            except:
+                pass
+            self.mail = None
+
     @staticmethod
-    def get_new_access_token(refresh_token, client_id="9e5f94bc-e8a4-4e73-b8be-63364c29d753"):
+    def get_new_access_token(refresh_token, client_id):
         """刷新获取新的access_token"""
-        tenant_id = 'common'
-        refresh_token_data = {
+        url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
+        data = {
+            'client_id': client_id,
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token,
-            'client_id': client_id,
         }
-
-        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
         try:
-            response = requests.post(token_url, data=refresh_token_data)
-            if response.status_code == 200:
-                new_access_token = response.json().get('access_token')
-                logger.info(f"成功获取新的访问令牌")
-                return new_access_token
-            else:
-                logger.error(f"刷新令牌失败: {response.status_code} - {response.text}")
+            response = requests.post(url, data=data)
+            result_status = response.json().get('error')
+            if result_status is not None:
+                logger.error(f"获取访问令牌失败: {result_status}")
                 return None
+            else:
+                new_access_token = response.json()['access_token']
+                logger.info("成功获取新的访问令牌")
+                return new_access_token
         except Exception as e:
             logger.error(f"刷新令牌过程中发生异常: {str(e)}")
             return None
@@ -53,7 +177,7 @@ class OutlookMailHandler:
         return f"user={user}\1auth=Bearer {token}\1\1"
 
     @staticmethod
-    def fetch_emails(email_address, access_token, folder="INBOX", callback=None, last_check_time=None):
+    def fetch_emails(email_address, access_token, folder="inbox", callback=None, last_check_time=None):
         """
         通过IMAP协议获取Outlook/Hotmail邮箱中的邮件
 
@@ -91,14 +215,14 @@ class OutlookMailHandler:
                 callback(10, folder)
 
                 # 创建IMAP连接
-                mail = imaplib.IMAP4_SSL('outlook.office365.com')
+                mail = imaplib.IMAP4_SSL('outlook.live.com')
 
                 # 使用OAuth2登录
                 auth_string = OutlookMailHandler.generate_auth_string(email_address, access_token)
                 mail.authenticate('XOAUTH2', lambda x: auth_string)
 
                 # 选择文件夹
-                mail.select(folder)
+                mail.select('inbox')
                 callback(20, folder)
 
                 # 定义搜索条件
@@ -248,7 +372,7 @@ class OutlookMailHandler:
                 mail_records = OutlookMailHandler.fetch_emails(
                     email_address,
                     access_token,
-                    "INBOX",
+                    "inbox",
                     folder_progress_callback
                 )
 

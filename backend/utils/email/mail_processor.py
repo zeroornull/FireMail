@@ -337,6 +337,7 @@ class EmailBatchProcessor:
                     mail_records = OutlookMailHandler.fetch_emails(
                         email_info['email'],
                         access_token,
+                        folder="inbox",
                         callback=callback,
                         last_check_time=last_check_time
                     )

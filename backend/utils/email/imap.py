@@ -42,6 +42,133 @@ logger = logging.getLogger(__name__)
 class IMAPMailHandler:
     """IMAP邮箱处理类 - 增强版"""
 
+    # 常用文件夹映射
+    DEFAULT_FOLDERS = {
+        'INBOX': ['INBOX', 'Inbox', 'inbox'],
+        'SENT': ['Sent', 'SENT', 'Sent Items', 'Sent Messages', '已发送'],
+        'DRAFTS': ['Drafts', 'DRAFTS', 'Draft', '草稿箱'],
+        'TRASH': ['Trash', 'TRASH', 'Deleted', 'Deleted Items', 'Deleted Messages', '垃圾箱', '已删除'],
+        'SPAM': ['Spam', 'SPAM', 'Junk', 'Junk E-mail', 'Bulk Mail', '垃圾邮件'],
+        'ARCHIVE': ['Archive', 'ARCHIVE', 'All Mail', '归档']
+    }
+
+    def __init__(self, server, username, password, use_ssl=True, port=None):
+        """初始化IMAP处理器"""
+        self.server = server
+        self.username = username
+        self.password = password
+        self.use_ssl = use_ssl
+        self.port = port or (993 if use_ssl else 143)
+        self.mail = None
+        self.error = None
+
+        # 自动检测服务器
+        if not server and '@' in username:
+            domain = username.split('@')[1].lower()
+            if 'gmail' in domain:
+                self.server = 'imap.gmail.com'
+            elif 'qq.com' in domain:
+                self.server = 'imap.qq.com'
+            elif 'outlook' in domain or 'hotmail' in domain or 'live' in domain:
+                self.server = 'outlook.office365.com'
+            elif '163.com' in domain:
+                self.server = 'imap.163.com'
+            elif '126.com' in domain:
+                self.server = 'imap.126.com'
+
+    def connect(self):
+        """连接到IMAP服务器"""
+        try:
+            if self.use_ssl:
+                self.mail = imaplib.IMAP4_SSL(self.server, self.port)
+            else:
+                self.mail = imaplib.IMAP4(self.server, self.port)
+
+            self.mail.login(self.username, self.password)
+            return True
+        except Exception as e:
+            self.error = str(e)
+            logger.error(f"IMAP连接失败: {e}")
+            return False
+
+    def get_folders(self):
+        """获取文件夹列表"""
+        if not self.mail:
+            return []
+
+        try:
+            _, folders = self.mail.list()
+            folder_list = []
+
+            for folder in folders:
+                if isinstance(folder, bytes):
+                    folder = folder.decode('utf-8', errors='ignore')
+
+                # 解析文件夹名称
+                parts = folder.split('"')
+                if len(parts) >= 3:
+                    folder_name = parts[-2]
+                else:
+                    # 简单解析
+                    folder_name = folder.split()[-1]
+
+                if folder_name and folder_name not in ['.', '..']:
+                    folder_list.append(folder_name)
+
+            # 确保常用文件夹在列表中
+            default_folders = ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam']
+            for df in default_folders:
+                if df not in folder_list:
+                    folder_list.append(df)
+
+            return sorted(folder_list)
+        except Exception as e:
+            logger.error(f"获取文件夹列表失败: {e}")
+            return ['INBOX']
+
+    def get_messages(self, folder="INBOX", limit=100):
+        """获取指定文件夹的邮件"""
+        if not self.mail:
+            return []
+
+        try:
+            self.mail.select(folder)
+            _, messages = self.mail.search(None, 'ALL')
+            message_numbers = messages[0].split()
+
+            # 限制数量并倒序（最新的在前）
+            message_numbers = message_numbers[-limit:] if len(message_numbers) > limit else message_numbers
+            message_numbers.reverse()
+
+            mail_list = []
+            for num in message_numbers:
+                try:
+                    _, msg_data = self.mail.fetch(num, '(RFC822)')
+                    email_body = msg_data[0][1]
+                    msg = email.message_from_bytes(email_body)
+
+                    mail_record = parse_email_message(msg, folder)
+                    if mail_record:
+                        mail_list.append(mail_record)
+                except Exception as e:
+                    logger.warning(f"解析邮件失败: {e}")
+                    continue
+
+            return mail_list
+        except Exception as e:
+            logger.error(f"获取邮件失败: {e}")
+            return []
+
+    def close(self):
+        """关闭连接"""
+        if self.mail:
+            try:
+                self.mail.close()
+                self.mail.logout()
+            except:
+                pass
+            self.mail = None
+
     @staticmethod
     @timing_decorator
     def fetch_emails(email_address, password, server, port=993, use_ssl=True, folder="INBOX", callback=None, last_check_time=None):
@@ -236,63 +363,3 @@ class IMAPMailHandler:
                 progress_callback(0, f"检查邮件失败: {str(e)}")
             return {'success': False, 'message': str(e)}
 
-    @staticmethod
-    def parse_email_message(msg):
-        """解析邮件内容"""
-        try:
-            # 获取基本信息
-            subject = msg.get('subject', '(无主题)')
-            from_addr = msg.get('from', '')
-            to_addr = msg.get('to', '')
-            date = msg.get('date', '')
-            message_id = msg.get('message_id', '')
-
-            # 获取邮件内容
-            content = msg.get('content', '')
-            if not content:
-                content = '(无内容)'
-
-            # 处理附件
-            attachments = []
-            for attachment in msg.get('attachments', []):
-                try:
-                    filename = attachment.get('filename', '')
-                    if not filename:
-                        continue
-
-                    # 处理文件名编码
-                    try:
-                        filename = decode_header(filename)[0][0]
-                        if isinstance(filename, bytes):
-                            filename = filename.decode('utf-8', errors='ignore')
-                    except:
-                        pass
-
-                    content_type = attachment.get('content_type', '')
-                    size = attachment.get('size', 0)
-
-                    attachments.append({
-                        'filename': filename,
-                        'content_type': content_type,
-                        'size': size
-                    })
-                except Exception as e:
-                    logger.error(f"处理附件时出错: {str(e)}")
-                    continue
-
-            # 创建邮件记录
-            mail_record = {
-                'message_id': message_id,
-                'subject': subject,
-                'from_addr': from_addr,
-                'to_addr': to_addr,
-                'date': date,
-                'content': content,
-                'attachments': attachments
-            }
-
-            return mail_record
-
-        except Exception as e:
-            logger.error(f"解析邮件时出错: {str(e)}")
-            return None

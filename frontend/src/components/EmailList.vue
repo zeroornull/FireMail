@@ -12,33 +12,33 @@
       <el-table-column label="操作" width="300" align="center">
         <template #default="scope">
           <div class="action-buttons flex gap-sm">
-            <el-button 
-              type="primary" 
-              size="small" 
+            <el-button
+              type="primary"
+              size="small"
               @click="checkEmail(scope.row.id)"
               class="action-btn"
             >
               检查邮件
             </el-button>
-            <el-button 
-              type="success" 
-              size="small" 
+            <el-button
+              type="success"
+              size="small"
               @click="viewEmails(scope.row.id)"
               class="action-btn"
             >
               查看邮件
             </el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
+            <el-button
+              type="danger"
+              size="small"
               @click="deleteEmail(scope.row.id)"
               class="action-btn"
             >
               删除
             </el-button>
-            <el-button 
-              type="warning" 
-              size="small" 
+            <el-button
+              type="warning"
+              size="small"
               @click="editEmail(scope.row)"
               class="action-btn"
             >
@@ -66,14 +66,14 @@
           <el-input v-model="editForm.email" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input 
-            v-model="editForm.password" 
-            type="password" 
+          <el-input
+            v-model="editForm.password"
+            type="password"
             show-password
             @input="checkPasswordStrength"
           >
             <template #append>
-              <el-tooltip 
+              <el-tooltip
                 content="密码应包含大小写字母、数字和特殊字符,长度至少8位"
                 placement="top"
               >
@@ -83,8 +83,8 @@
           </el-input>
           <div class="password-strength" v-if="editForm.password">
             <span>密码强度:</span>
-            <el-progress 
-              :percentage="passwordStrength" 
+            <el-progress
+              :percentage="passwordStrength"
               :color="passwordStrengthColor"
               :format="passwordStrengthText"
             />
@@ -104,8 +104,8 @@
             <p>QQ邮箱: <code>imap.qq.com</code> 端口: <code>993</code> SSL: 开启</p>
             <p>163邮箱: <code>imap.163.com</code> 端口: <code>993</code> SSL: 开启</p>
           </div>
-          <el-form-item 
-            label="服务器" 
+          <el-form-item
+            label="服务器"
             prop="server"
             :rules="[
               { required: true, message: '请输入IMAP服务器地址', trigger: 'blur' },
@@ -120,17 +120,17 @@
               </template>
             </el-input>
           </el-form-item>
-          <el-form-item 
-            label="端口" 
+          <el-form-item
+            label="端口"
             prop="port"
             :rules="[
               { required: true, message: '请输入端口号', trigger: 'blur' },
               { type: 'number', min: 1, max: 65535, message: '端口号范围: 1-65535', trigger: 'blur' }
             ]"
           >
-            <el-input-number 
-              v-model="editForm.port" 
-              :min="1" 
+            <el-input-number
+              v-model="editForm.port"
+              :min="1"
               :max="65535"
               controls-position="right"
             />
@@ -173,7 +173,6 @@ import { InfoFilled, Search, Edit, Delete, Message as View } from '@element-plus
 
 const store = useStore()
 const router = useRouter()
-const ws = ref(null)
 const emails = ref([])
 const editDialogVisible = ref(false)
 const editFormRef = ref(null)
@@ -207,7 +206,7 @@ const checkPasswordStrength = (password) => {
     passwordStrength.value = 0
     return
   }
-  
+
   let strength = 0
   // 检查长度
   if (password.length >= 8) strength += 20
@@ -219,7 +218,7 @@ const checkPasswordStrength = (password) => {
   if (/[A-Z]/.test(password)) strength += 20
   // 检查是否包含特殊字符
   if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 20
-  
+
   passwordStrength.value = strength
 }
 
@@ -231,7 +230,7 @@ const editRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 8, message: '密码长度至少为8位', trigger: 'blur' },
-    { 
+    {
       validator: (rule, value, callback) => {
         if (value && passwordStrength.value < 60) {
           callback(new Error('密码强度不足'))
@@ -260,45 +259,6 @@ const editRules = {
 }
 
 const testing = ref(false)
-
-// 初始化WebSocket连接
-const initWebSocket = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    router.push('/login')
-    return
-  }
-
-  ws.value = new WebSocket(`ws://${window.location.hostname}:8765`)
-  ws.value.onopen = () => {
-    console.log('WebSocket连接已建立')
-    ws.value.send(JSON.stringify({ token }))
-  }
-
-  ws.value.onmessage = (event) => {
-    const data = JSON.parse(event.data)
-    handleWebSocketMessage(data)
-  }
-
-  ws.value.onerror = (error) => {
-    console.error('WebSocket错误:', error)
-  }
-
-  ws.value.onclose = () => {
-    console.log('WebSocket连接已关闭')
-  }
-}
-
-// 处理WebSocket消息
-const handleWebSocketMessage = (data) => {
-  switch (data.type) {
-    case 'email_updated':
-      // 更新邮箱列表
-      fetchEmails()
-      break
-    // 其他消息处理...
-  }
-}
 
 // 获取邮箱列表
 const fetchEmails = async () => {
@@ -345,14 +305,14 @@ const deleteEmail = async (emailId) => {
     await ElMessageBox.confirm('确定要删除这个邮箱吗？', '提示', {
       type: 'warning'
     })
-    
+
     const response = await fetch(`/api/emails/${emailId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     })
-    
+
     if (response.ok) {
       ElMessage.success('删除成功')
       fetchEmails()
@@ -381,15 +341,15 @@ const editEmail = (email) => {
 // 提交编辑表单
 const submitEditForm = async () => {
   if (!editFormRef.value) return
-  
+
   try {
     await editFormRef.value.validate()
-    
+
     // 确保use_ssl是布尔值
     if (editForm.value.mail_type === 'imap') {
       editForm.value.use_ssl = Boolean(editForm.value.use_ssl)
     }
-    
+
     const response = await fetch(`/api/emails/${editForm.value.id}`, {
       method: 'PUT',
       headers: {
@@ -398,7 +358,7 @@ const submitEditForm = async () => {
       },
       body: JSON.stringify(editForm.value)
     })
-    
+
     if (response.ok) {
       ElMessage.success('更新成功')
       editDialogVisible.value = false
@@ -433,11 +393,11 @@ const resetEditForm = () => {
 // 测试IMAP连接
 const testConnection = async () => {
   if (!editFormRef.value) return
-  
+
   try {
     await editFormRef.value.validate(['email', 'password', 'server', 'port'])
     testing.value = true
-    
+
     const response = await fetch('/api/emails/test-connection', {
       method: 'POST',
       headers: {
@@ -452,7 +412,7 @@ const testConnection = async () => {
         use_ssl: editForm.value.use_ssl
       })
     })
-    
+
     if (response.ok) {
       ElMessage.success('连接测试成功')
     } else {
@@ -473,7 +433,6 @@ const viewEmails = (emailId) => {
 }
 
 onMounted(() => {
-  initWebSocket()
   fetchEmails()
 })
 </script>
@@ -599,4 +558,4 @@ onMounted(() => {
 :deep(.el-table .el-table__cell) {
   padding: 10px 0;
 }
-</style> 
+</style>

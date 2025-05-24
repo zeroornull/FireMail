@@ -26,11 +26,11 @@ except ImportError:
     logging.warning("extract_msg库未安装，无法解析MSG文件")
 
 try:
-    import mail_parser  # 增强的邮件解析库
+    import mailparser  # 增强的邮件解析库
     MAIL_PARSER_AVAILABLE = True
 except ImportError:
     MAIL_PARSER_AVAILABLE = False
-    logging.warning("mail_parser库未安装，将使用标准库解析邮件")
+    logging.warning("mailparser库未安装，将使用标准库解析邮件")
 
 try:
     import eml_parser  # EML解析库
@@ -106,8 +106,8 @@ class EmailFileParser:
             # 尝试使用mail-parser库解析
             if MAIL_PARSER_AVAILABLE:
                 try:
-                    logger.debug("尝试使用mail-parser库解析EML内容")
-                    parsed_mail = mail_parser.parse_from_bytes(content)
+                    logger.debug("尝试使用mailparser库解析EML内容")
+                    parsed_mail = mailparser.parse_from_bytes(content)
 
                     # 提取基本信息
                     subject = parsed_mail.subject or "(无主题)"

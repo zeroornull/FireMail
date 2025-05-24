@@ -65,7 +65,11 @@ class WebSocketService {
       // 如果只是路径，添加协议和主机
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const hostname = window.location.hostname;
-      const url = `${protocol}//${hostname}${window.WS_URL}`;
+      const port = window.location.port;
+
+      // 构建完整的主机地址（包含端口）
+      const host = port ? `${hostname}:${port}` : hostname;
+      const url = `${protocol}//${host}${window.WS_URL}`;
       console.log('使用配置的WebSocket路径:', url);
       return url;
     }
