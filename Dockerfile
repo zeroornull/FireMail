@@ -1,48 +1,33 @@
-# --- Builder Stage ---
-FROM node:22-alpine AS builder
+# --- Frontend Builder Stage ---
+FROM node:22-alpine AS frontend-builder
 
-# Copy application files
-COPY . /app
+# Copy frontend files
+COPY frontend /app/frontend
 
-# Enable pnpm
-RUN corepack enable pnpm
-
-# Install and build frontend
+# Build frontend
 WORKDIR /app/frontend
-RUN pnpm install
-RUN pnpm install dayjs # 漏了一个依赖
-RUN pnpm build
+RUN corepack enable pnpm && \
+    pnpm install && \
+    pnpm install dayjs && \
+    pnpm build
 
 # --- Python Dependencies Stage ---
-FROM alpine AS python-deps
+FROM python:3.10.17-slim-bullseye AS python-deps
 
-# Install Python, build dependencies and pre-compiled packages
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    musl-dev \
-    python3-dev \
-    linux-headers \
-    make \
-    py3-numpy \
-    py3-scipy \
-    py3-pandas \
-    py3-cryptography \
-    py3-lxml \
-    py3-pillow \
-    python3-full-dev
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
 COPY backend/requirements.txt /requirements.txt
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir --no-deps cchardet==2.1.7 && \
-    pip3 install --no-cache-dir -r /requirements.txt --break-system-packages
+RUN pip install --no-cache-dir -r /requirements.txt
 
 # --- Final Stage ---
-FROM alpine
+FROM python:3.10.17-slim-bullseye
 
 # Environment variables
 ENV HOST=0.0.0.0 \
@@ -53,16 +38,24 @@ ENV HOST=0.0.0.0 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install Python and required packages (no build tools)
-RUN apk add --no-cache python3 py3-pip caddy bash
-
-# Copy necessary files from builder stage
-COPY --from=builder /app /app
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    caddy \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from python-deps stage
-COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
+COPY --from=python-deps /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# 显式复制启动脚本并设置权限
+# Copy frontend build from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+
+# Copy backend files
+COPY backend /app/backend
+COPY Caddyfile /app/
+
+# Copy and set permissions for startup script
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
