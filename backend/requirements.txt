@@ -8,11 +8,7 @@ importlib-metadata==6.8.0
 Werkzeug==2.3.7
 PyJWT==2.8.0
 # 邮件解析相关库
-ebcdic==1.1.1
-extract-msg==0.41.0
-mail-parser==3.15.0
-talon==1.4.4
-eml-parser==1.17.0
-
-# 排除有问题的包
-cchardet==2.1.7; platform_python_implementation != 'CPython'
+extract-msg>=0.41.0
+mail-parser>=3.15.0
+talon>=1.4.4
+eml-parser>=1.17.0
